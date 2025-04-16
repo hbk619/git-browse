@@ -95,16 +95,16 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	return nil
 }
 
-func (pr *PRAction) R() {
+func (pr *PRAction) Run() {
 	for {
 		result := internal.StringPrompt("n to go to the next result, p for previous, r to repeat or q to quit")
 		switch result {
 		case "n":
-			pr.Interactive.N(pr.Print)
+			pr.Interactive.Next(pr.Print)
 		case "p":
-			pr.Interactive.P(pr.Print)
+			pr.Interactive.Previous(pr.Print)
 		case "r":
-			pr.Interactive.R(pr.Print)
+			pr.Interactive.Repeat(pr.Print)
 		case "q":
 			os.Exit(0)
 		default:

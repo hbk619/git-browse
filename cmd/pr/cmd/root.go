@@ -39,7 +39,7 @@ var rootCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
-		pr.R()
+		pr.Run()
 	},
 }
 

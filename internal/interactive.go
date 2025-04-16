@@ -7,7 +7,7 @@ type Interactive struct {
 	MaxIndex int
 }
 
-func (i *Interactive) N(print func()) {
+func (i *Interactive) Next(print func()) {
 	if i.Index < i.MaxIndex {
 		i.Index++
 		print()
@@ -16,7 +16,7 @@ func (i *Interactive) N(print func()) {
 	}
 }
 
-func (i *Interactive) P(print func()) {
+func (i *Interactive) Previous(print func()) {
 	if i.Index > 0 {
 		i.Index--
 		print()
@@ -25,6 +25,6 @@ func (i *Interactive) P(print func()) {
 	}
 }
 
-func (i *Interactive) R(print func()) {
+func (i *Interactive) Repeat(print func()) {
 	print()
 }
