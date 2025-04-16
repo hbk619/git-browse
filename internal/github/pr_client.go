@@ -54,7 +54,7 @@ func (gh *PRClient) GetMainPRDetails(pullNumber int, verbose bool) (*git.PR, err
 	getCommentsCommand := fmt.Sprintf("gh pr view %d --json title,comments,reviews,body,author,createdAt%s", pullNumber, verboseFields)
 	comments, err := gh.apiClient.RunCommand(getCommentsCommand)
 	if err != nil {
-		return &git.PR{}, err
+		return nil, fmt.Errorf("failed to get pr details %w", err)
 	}
 
 	if len(comments) == 0 {
@@ -64,7 +64,7 @@ func (gh *PRClient) GetMainPRDetails(pullNumber int, verbose bool) (*git.PR, err
 	var response git.PRDetails
 	err = json.Unmarshal([]byte(comments), &response)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create json from pr info %s %w", comments, err)
 	}
 
 	apiComments := append(response.Comments, response.Reviews...)
