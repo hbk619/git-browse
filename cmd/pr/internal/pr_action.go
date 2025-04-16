@@ -1,10 +1,13 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"github.com/hbk619/git-browse/internal"
+	"github.com/hbk619/git-browse/internal/filesystem"
 	"github.com/hbk619/git-browse/internal/git"
 	"github.com/hbk619/git-browse/internal/github"
+	"github.com/hbk619/git-browse/internal/history"
 	"os"
 	"strings"
 )
@@ -19,16 +22,20 @@ type PRAction struct {
 	HelpText            string
 	State               git.State
 	client              github.PullRequestClient
+	history             history.Storage
+	output              filesystem.Output
 	internal.Interactive
 }
 
-func NewPRAction(client github.PullRequestClient) *PRAction {
+func NewPRAction(client github.PullRequestClient, history history.Storage, output filesystem.Output) *PRAction {
 	return &PRAction{
 		Repo:                &git.Repo{},
 		PrintedPathLastTime: true,
 		LastFullPath:        "",
 		HelpText:            "Type c to comment",
 		client:              client,
+		history:             history,
+		output:              output,
 	}
 }
 
@@ -60,15 +67,31 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 		pr.PrintState()
 	}
 
-	if len(pr.Results) == 0 {
-		fmt.Println("No comments found")
-		os.Exit(1)
+	prHistory, err := pr.history.Load()
+	if err != nil {
+		return err
 	}
 
-	pr.Interactive.MaxIndex = len(pr.Results) - 1
+	existingPrHistory := prHistory.Prs[prNumber]
+	commentCount := len(pr.Results)
+	if existingPrHistory.CommentCount != commentCount {
+		pr.output.Print("New comments ahead!")
+	}
+
+	existingPrHistory.CommentCount = commentCount
+	prHistory.Prs[prNumber] = existingPrHistory
+	err = pr.history.Save(prHistory)
+	if err != nil {
+		return err
+	}
+
+	if commentCount == 0 {
+		return errors.New("no comments found")
+	}
+
+	pr.Interactive.MaxIndex = commentCount - 1
 	pr.LastFullPath = pr.Results[0].FileDetails.FullPath
 	pr.Print()
-	pr.R()
 	return nil
 }
 
@@ -85,7 +108,7 @@ func (pr *PRAction) R() {
 		case "q":
 			os.Exit(0)
 		default:
-			fmt.Println("Invalid choice")
+			pr.output.Print("Invalid choice")
 		}
 
 	}
@@ -94,18 +117,18 @@ func (pr *PRAction) R() {
 func (pr *PRAction) Print() {
 	current := pr.Results[pr.Interactive.Index]
 	if current.Thread.IsResolved {
-		fmt.Println("This comment is resolved")
+		pr.output.Print("This comment is resolved")
 	}
 	if current.Outdated {
-		fmt.Println("This comment is outdated")
+		pr.output.Print("This comment is outdated")
 	}
-	fmt.Println(current.Author.Login)
-	fmt.Println(current.Body)
+	pr.output.Print(current.Author.Login)
+	pr.output.Print(current.Body)
 }
 
 func (pr *PRAction) PrintState() {
-	fmt.Println(pr.State.MergeStatus)
-	fmt.Println(pr.State.ConflictStatus)
+	pr.output.Print(pr.State.MergeStatus)
+	pr.output.Print(pr.State.ConflictStatus)
 	for reviewState, names := range pr.State.Reviews {
 		fmt.Printf("%s %s\n", reviewState, strings.Join(names, " "))
 	}
