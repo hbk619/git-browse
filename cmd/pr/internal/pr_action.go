@@ -67,22 +67,24 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 		pr.PrintState()
 	}
 
+	commentCount := len(pr.Results)
 	prHistory, err := pr.history.Load()
 	if err != nil {
-		return err
+		pr.output.Print(fmt.Sprintf("Warning failed to load comments to history: %s", err.Error()))
 	}
 
-	existingPrHistory := prHistory.Prs[prNumber]
-	commentCount := len(pr.Results)
-	if existingPrHistory.CommentCount != commentCount {
-		pr.output.Print("New comments ahead!")
-	}
+	if err == nil {
+		existingPrHistory := prHistory.Prs[prNumber]
+		if existingPrHistory.CommentCount != commentCount {
+			pr.output.Print("New comments ahead!")
+		}
 
-	existingPrHistory.CommentCount = commentCount
-	prHistory.Prs[prNumber] = existingPrHistory
-	err = pr.history.Save(prHistory)
-	if err != nil {
-		return err
+		existingPrHistory.CommentCount = commentCount
+		prHistory.Prs[prNumber] = existingPrHistory
+		err = pr.history.Save(prHistory)
+		if err != nil {
+			pr.output.Print(fmt.Sprintf("Warning failed to save comments to history: %s", err.Error()))
+		}
 	}
 
 	if commentCount == 0 {
