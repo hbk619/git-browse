@@ -132,9 +132,9 @@ func (pr *PRAction) PrintState() {
 	pr.output.Print(pr.State.MergeStatus)
 	pr.output.Print(pr.State.ConflictStatus)
 	for reviewState, names := range pr.State.Reviews {
-		fmt.Printf("%s %s\n", reviewState, strings.Join(names, " "))
+		pr.output.Print(fmt.Sprintf("%s %s", reviewState, strings.Join(names, " ")))
 	}
 	for _, status := range pr.State.Statuses {
-		fmt.Printf("Check %s %s\n", status.Name, status.Conclusion)
+		pr.output.Print(fmt.Sprintf("Check %s %s", status.Name, status.Conclusion))
 	}
 }
