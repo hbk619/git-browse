@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"github.com/hbk619/git-browse/cmd/pr/internal"
+	"github.com/hbk619/git-browse/internal/filesystem"
 	"github.com/hbk619/git-browse/internal/github"
+	"github.com/hbk619/git-browse/internal/history"
 	"os"
 	"strconv"
 
@@ -21,7 +23,12 @@ var rootCmd = &cobra.Command{
 			fmt.Println("Error: Please provide a valid PR number")
 			return
 		}
-		pr := internal.NewPRAction(github.NewPRClient(github.NewGHApi()))
+		historyService, err := history.NewHistoryService(os.Getenv("HOME"), filesystem.NewFS())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		pr := internal.NewPRAction(github.NewPRClient(github.NewGHApi()), historyService, filesystem.NewStdOut())
 		verbose, err := cmd.Flags().GetBool("verbose")
 		if err != nil {
 			fmt.Println(err)
@@ -30,7 +37,9 @@ var rootCmd = &cobra.Command{
 		err = pr.Init(number, verbose)
 		if err != nil {
 			fmt.Println(err)
+			return
 		}
+		pr.Run()
 	},
 }
 
