@@ -49,19 +49,19 @@ func (mr *MockPullRequestClientMockRecorder) GetCommitComments(repoOwner, repoNa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommitComments", reflect.TypeOf((*MockPullRequestClient)(nil).GetCommitComments), repoOwner, repoName, pullNumber)
 }
 
-// GetMainPRDetails mocks base method.
-func (m *MockPullRequestClient) GetMainPRDetails(pullNumber int, verbose bool) (*git.PR, error) {
+// GetPRDetails mocks base method.
+func (m *MockPullRequestClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMainPRDetails", pullNumber, verbose)
+	ret := m.ctrl.Call(m, "GetPRDetails", repo, verbose)
 	ret0, _ := ret[0].(*git.PR)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetMainPRDetails indicates an expected call of GetMainPRDetails.
-func (mr *MockPullRequestClientMockRecorder) GetMainPRDetails(pullNumber, verbose interface{}) *gomock.Call {
+// GetPRDetails indicates an expected call of GetPRDetails.
+func (mr *MockPullRequestClientMockRecorder) GetPRDetails(repo, verbose interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMainPRDetails", reflect.TypeOf((*MockPullRequestClient)(nil).GetMainPRDetails), pullNumber, verbose)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPRDetails", reflect.TypeOf((*MockPullRequestClient)(nil).GetPRDetails), repo, verbose)
 }
 
 // GetRepoDetails mocks base method.

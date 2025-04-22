@@ -18,12 +18,18 @@ type PRServiceTestSuite struct {
 	suite.Suite
 	mockApi   *mock_github.MockApi
 	ctrl      *gomock.Controller
+	repo      *git.Repo
 	prService PRClient
 }
 
 func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockApi = mock_github.NewMockApi(suite.ctrl)
+	suite.repo = &git.Repo{
+		Owner:    "luigi",
+		Name:     "castle",
+		PRNumber: 123,
+	}
 	suite.prService = PRClient{
 		apiClient: suite.mockApi,
 	}
@@ -53,7 +59,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
 		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
 
-	details, err := suite.prService.GetMainPRDetails(123, false)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
@@ -225,7 +231,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
 		Return(string(marshalled), nil)
 
-	details, err := suite.prService.GetMainPRDetails(123, true)
+	details, err := suite.prService.GetPRDetails(suite.repo, true)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
@@ -235,7 +241,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_pr_not_found() {
 		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return("", nil)
 
-	details, err := suite.prService.GetMainPRDetails(123, false)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.ErrorContains(suite.T(), err, "pull request not found")
 	assert.Nil(suite.T(), details)
 }
@@ -339,7 +345,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
 
-	details, err := suite.prService.GetMainPRDetails(123, false)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }

@@ -13,7 +13,7 @@ import (
 
 type PullRequestClient interface {
 	GetCommitComments(repoOwner, repoName string, pullNumber int) ([]git.Comment, error)
-	GetMainPRDetails(pullNumber int, verbose bool) (*git.PR, error)
+	GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error)
 	GetRepoDetails() (*git.Repo, error)
 }
 
@@ -45,13 +45,13 @@ var mergeStates = map[string]string{
 	"UNKNOWN":     "The mergeability of the pull request is still being calculated",
 }
 
-func (gh *PRClient) GetMainPRDetails(pullNumber int, verbose bool) (*git.PR, error) {
+func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
 	verboseFields := ""
 	if verbose {
 		verboseFields = ",mergeStateStatus,mergeable,state,statusCheckRollup"
 	}
 
-	getCommentsCommand := fmt.Sprintf("gh pr view %d --json title,comments,reviews,body,author,createdAt%s", pullNumber, verboseFields)
+	getCommentsCommand := fmt.Sprintf("gh pr view %d --json title,comments,reviews,body,author,createdAt%s", repo.PRNumber, verboseFields)
 	comments, err := gh.apiClient.RunCommand(getCommentsCommand)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pr details %w", err)

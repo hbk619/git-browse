@@ -48,7 +48,7 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	pr.Repo.Name = repoDetails.Name
 	pr.Repo.PRNumber = prNumber
 
-	prDetails, err := pr.client.GetMainPRDetails(prNumber, verbose)
+	prDetails, err := pr.client.GetPRDetails(pr.Repo, verbose)
 	if err != nil {
 		return err
 	}
