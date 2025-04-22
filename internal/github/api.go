@@ -15,22 +15,20 @@ type Api interface {
 
 type GHApi struct{}
 
-func NewGHApi() *GHApi {
-	return &GHApi{}
+type GHApi struct {
+	httpClient        requests.HTTPClient
+	commandLineClient requests.CommandLine
 }
 
-func (ghApi *GHApi) RunCommand(command string) (string, error) {
-	var out bytes.Buffer
-	cmd := exec.Command("bash", "-c", command)
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return "", err
+func NewGHApi(client requests.HTTPClient, line requests.CommandLine) *GHApi {
+	return &GHApi{
+		httpClient:        client,
+		commandLineClient: line,
 	}
-	return out.String(), nil
 }
 
 func (ghApi *GHApi) LoadGitHubAPIJSON(command string) ([]byte, error) {
-	output, err := ghApi.RunCommand(command)
+	output, err := ghApi.commandLineClient.Run(command)
 	if err != nil {
 		return nil, err
 	}

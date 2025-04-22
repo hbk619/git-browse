@@ -7,6 +7,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/git-browse/internal/git"
 	mock_github "github.com/hbk619/git-browse/internal/github/mocks"
+	mock_requests "github.com/hbk619/git-browse/internal/requests/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -16,10 +17,11 @@ import (
 
 type PRServiceTestSuite struct {
 	suite.Suite
-	mockApi   *mock_github.MockApi
-	ctrl      *gomock.Controller
-	repo      *git.Repo
-	prService PRClient
+	mockApi         *mock_github.MockApi
+	ctrl            *gomock.Controller
+	repo            *git.Repo
+	prService       PRClient
+	mockCommandLine *mock_requests.MockCommandLine
 }
 
 func (suite *PRServiceTestSuite) BeforeTest(string, string) {
@@ -30,10 +32,11 @@ func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 		Name:     "castle",
 		PRNumber: 123,
 	}
+	suite.mockCommandLine = mock_requests.NewMockCommandLine(suite.ctrl)
 	suite.prService = PRClient{
-		apiClient: suite.mockApi,
+		apiClient:         suite.mockApi,
+		commandLineClient: suite.mockCommandLine,
 	}
-
 }
 
 func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
@@ -55,8 +58,8 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
 		State:    git.State{},
 		Title:    "Test pr",
 	}
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
 
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
@@ -227,8 +230,8 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 		},
 		Title: "Test pr",
 	}
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
 		Return(string(marshalled), nil)
 
 	details, err := suite.prService.GetPRDetails(suite.repo, true)
@@ -237,8 +240,8 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 }
 
 func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_pr_not_found() {
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return("", nil)
 
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
@@ -341,8 +344,8 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 		State: git.State{},
 		Title: "Test pr",
 	}
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
 
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
@@ -351,8 +354,8 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidSSHURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("git@github.com:peach/repo-2.git", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -365,8 +368,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidSSHURL() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidHTTPSURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("https://git.com/mario/castle.git", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -379,8 +382,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidHTTPSURL() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_CommandError() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("", errors.New("command failed"))
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -390,8 +393,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_CommandError() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_EmptyRemoteURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -401,8 +404,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_EmptyRemoteURL() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_InvalidRemoteURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("invalid-url", nil)
 
 	repo, err := suite.prService.GetRepoDetails()

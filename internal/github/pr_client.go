@@ -19,11 +19,14 @@ type PullRequestClient interface {
 
 type PRClient struct {
 	apiClient Api
+	apiClient         Api
+	commandLineClient requests.CommandLine
 }
 
-func NewPRClient(apiClient Api) *PRClient {
+func NewPRClient(apiClient Api, line requests.CommandLine) *PRClient {
 	return &PRClient{
-		apiClient: apiClient,
+		apiClient:         apiClient,
+		commandLineClient: line,
 	}
 }
 
@@ -52,7 +55,7 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 	}
 
 	getCommentsCommand := fmt.Sprintf("gh pr view %d --json title,comments,reviews,body,author,createdAt%s", repo.PRNumber, verboseFields)
-	comments, err := gh.apiClient.RunCommand(getCommentsCommand)
+	comments, err := gh.commandLineClient.Run(getCommentsCommand)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pr details %w", err)
 	}
@@ -132,7 +135,7 @@ func (gh *PRClient) getReviewStatuses(response git.PRDetails) map[string][]strin
 var gitRepoRegex = regexp.MustCompile(`(?:git@|https://)[^:/]+[:/](?P<owner>[^/]+)/(?P<repo>.*)\.git`)
 
 func (gh *PRClient) GetRepoDetails() (*git.Repo, error) {
-	remote, err := gh.apiClient.RunCommand("git config --get remote.origin.url")
+	remote, err := gh.commandLineClient.Run("git config --get remote.origin.url")
 	if err != nil || remote == "" {
 		wd, _ := os.Getwd()
 		return nil, fmt.Errorf(
