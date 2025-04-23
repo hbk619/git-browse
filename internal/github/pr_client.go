@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hbk619/git-browse/internal/git"
+	"github.com/hbk619/git-browse/internal/github/graphql"
+	"github.com/hbk619/git-browse/internal/requests"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -17,8 +21,13 @@ type PullRequestClient interface {
 	GetRepoDetails() (*git.Repo, error)
 }
 
+type GetReviewCommentsQuery struct {
+	PullRequestId int
+	Owner         string
+	RepoName      string
+}
+
 type PRClient struct {
-	apiClient Api
 	apiClient         Api
 	commandLineClient requests.CommandLine
 }
@@ -67,7 +76,7 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 	var response git.PRDetails
 	err = json.Unmarshal([]byte(comments), &response)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create json from pr info %s %w", comments, err)
+		return nil, fmt.Errorf("failed to create json from pr. Received %s %w", comments, err)
 	}
 
 	apiComments := append(response.Comments, response.Reviews...)
@@ -110,6 +119,12 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 		}
 	}
 
+	reviewComments, err := gh.getReviewComments(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get review comments from pr %w", err)
+	}
+
+	commentList = append(commentList, reviewComments...)
 	return &git.PR{
 		Comments: commentList,
 		State:    state,
@@ -130,6 +145,51 @@ func (gh *PRClient) getReviewStatuses(response git.PRDetails) map[string][]strin
 		}
 	}
 	return reviewStatus
+}
+
+func (gh *PRClient) getReviewComments(repo *git.Repo) ([]git.Comment, error) {
+	variables := map[string]interface{}{
+		"PullRequestId": repo.PRNumber,
+		"Owner":         repo.Owner,
+		"RepoName":      repo.Name,
+	}
+
+	data, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to load review comments %w", err)
+	}
+
+	var graphQLData git.GitHubData
+	err = json.Unmarshal(data, &graphQLData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse review comments because: %w", err)
+	}
+	var comments []git.Comment
+	threads := graphQLData.Data.Repository.PullRequest.ReviewThreads.Nodes
+	for _, thread := range threads {
+		var threadComments []git.Comment
+		for _, comment := range thread.Comments.Nodes {
+			lineNumber := comment.File.Line
+			if lineNumber == 0 {
+				lineNumber = comment.OriginalLine
+			}
+			comment.File.FullPath = fmt.Sprintf("%s:%d", comment.File.Path, lineNumber)
+			comment.File.FileName = filepath.Base(comment.File.Path)
+			comment.File.Path = comment.File.Path[:len(comment.File.Path)-len(comment.File.FileName)]
+			lines := strings.Split(comment.DiffHunk, "\n")
+			comment.LineContents = lines[len(lines)-1]
+			comment.Thread = git.Thread{ID: thread.ID, IsResolved: thread.IsResolved}
+
+			threadComments = append(threadComments, comment)
+		}
+		slices.SortFunc(threadComments, func(i, j git.Comment) int {
+			return time.Time.Compare(i.CreatedAt, j.CreatedAt)
+		})
+
+		comments = append(comments, threadComments...)
+	}
+	return comments, nil
 }
 
 var gitRepoRegex = regexp.MustCompile(`(?:git@|https://)[^:/]+[:/](?P<owner>[^/]+)/(?P<repo>.*)\.git`)

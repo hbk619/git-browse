@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/git-browse/internal/git"
+	"github.com/hbk619/git-browse/internal/github/graphql"
 	mock_github "github.com/hbk619/git-browse/internal/github/mocks"
 	mock_requests "github.com/hbk619/git-browse/internal/requests/mocks"
 	"github.com/stretchr/testify/assert"
@@ -61,7 +62,14 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
 	suite.mockCommandLine.EXPECT().
 		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
 
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return([]byte("{}"), nil)
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
@@ -233,7 +241,14 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 	suite.mockCommandLine.EXPECT().
 		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
 		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
 
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return([]byte("{}"), nil)
 	details, err := suite.prService.GetPRDetails(suite.repo, true)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
@@ -246,6 +261,76 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_pr_not_found() {
 
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.ErrorContains(suite.T(), err, "pull request not found")
+	assert.Nil(suite.T(), details)
+}
+
+func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_invalid_json_error() {
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+		Return("adsa", nil)
+
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
+	assert.ErrorContains(suite.T(), err, "failed to create json from pr")
+	assert.Nil(suite.T(), details)
+}
+func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_review_comments_error() {
+	prDetails := git.PRDetails{
+		Title: "Test pr",
+		Comments: []git.Comment{{
+			Id: "awdasdadad",
+			Author: git.Author{
+				Login: "Bowser",
+			},
+			Body:      "Rraaawwww",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
+		}, {
+			Id: "lkmoimiom",
+			Author: git.Author{
+				Login: "Yoshi",
+			},
+			Body:      "Yum!",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
+		}},
+		Reviews: []git.Comment{{
+			Id: "23213213",
+			Author: git.Author{
+				Login: "Peach",
+			},
+			Body:      "Great start",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
+			State:     "COMMENTED",
+		}, {
+			Id: "67867867867",
+			Author: git.Author{
+				Login: "Peach",
+			},
+			Body:      "Gone down hill!",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
+			State:     "COMMENTED",
+		}},
+		Body:              "",
+		Author:            git.Author{Login: "Mario"},
+		StatusCheckRollup: nil,
+		Mergeable:         "",
+		MergeStateStatus:  "",
+	}
+	marshalled, err := json.Marshal(prDetails)
+	assert.NoError(suite.T(), err)
+
+	expected := errors.New("ahhhhh")
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
+
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return(nil, expected)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
+	assert.ErrorContains(suite.T(), err, expected.Error())
 	assert.Nil(suite.T(), details)
 }
 
@@ -340,6 +425,46 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
+		}, {
+			Id: "ABCD_kDOOLvWJM5lOKjk",
+			Author: git.Author{
+				Login: "wario",
+			},
+			Body:      "Looking good!",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-31T09:34:11Z"),
+			File: git.File{
+				FullPath:     ".github/workflows/ci.yaml:2",
+				Path:         ".github/workflows/",
+				FileName:     "ci.yaml",
+				OriginalLine: 2,
+				DiffHunk:     "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]",
+				LineContents: "+on: [push]",
+				Line:         2,
+			},
+			Thread: git.Thread{
+				IsResolved: false,
+				ID:         "ABCD_kdER4tvWJM5AsoQq",
+			},
+		}, {
+			Id: "PDDD_kwDOKtvW309DSOXr_",
+			Author: git.Author{
+				Login: "wario",
+			},
+			Body:      "this is a line comment not in a review",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-31T10:15:10Z"),
+			File: git.File{
+				FullPath:     ".github/workflows/ci.yaml:6",
+				Path:         ".github/workflows/",
+				FileName:     "ci.yaml",
+				OriginalLine: 6,
+				DiffHunk:     "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+				LineContents: "+    steps:",
+				Line:         6,
+			},
+			Thread: git.Thread{
+				IsResolved: true,
+				ID:         "ABCD_kwDOKtvOWM5Aswyn",
+			},
 		}},
 		State: git.State{},
 		Title: "Test pr",
@@ -347,7 +472,75 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 	suite.mockCommandLine.EXPECT().
 		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
 
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return([]byte(`{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "ABCD_kdER4tvWJM5AsoQq",
+              "isResolved": false,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "ABCD_kDOOLvWJM5lOKjk",
+                    "body": "Looking good!",
+                    "author": {
+                      "login": "wario"
+                    },
+                    "originalLine": 2,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 2,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T09:34:11Z"
+                  }
+                ],
+                "pageInfo": {
+                  "hasNextPage": false
+                }
+              }
+            },
+            {
+              "id": "ABCD_kwDOKtvOWM5Aswyn",
+              "isResolved": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PDDD_kwDOKtvW309DSOXr_",
+                    "body": "this is a line comment not in a review",
+                    "author": {
+                      "login": "wario"
+                    },
+                    "originalLine": 6,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 6,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T10:15:10Z"
+                  }
+                ],
+                "pageInfo": {
+                  "hasNextPage": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}`), nil)
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)

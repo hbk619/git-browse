@@ -71,6 +71,34 @@ type (
 	Author struct {
 		Login string
 	}
+	ReviewThreads struct {
+		Nodes []ThreadNode
+	}
+
+	ThreadNode struct {
+		ID         string
+		IsResolved bool
+		Comments   Comments
+	}
+
+	Comments struct {
+		Nodes []Comment
+	}
+
+	Repository struct {
+		PullRequest PullRequest
+	}
+
+	PullRequest struct {
+		ReviewThreads ReviewThreads
+	}
+
+	GitHubData struct {
+		Data struct {
+			Repository Repository
+		}
+	}
+
 	PRDetails struct {
 		Title             string
 		Comments          []Comment
