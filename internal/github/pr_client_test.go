@@ -141,7 +141,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "My wonderful work",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-20T22:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -152,7 +152,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "Rraaawwww",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -163,7 +163,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "Great start",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -175,7 +175,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "Yum!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -187,7 +187,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			Body:      "Gone down hill!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
 			State:     "APPROVED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -199,7 +199,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			Body:      "Keep it up!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:48:47Z"),
 			State:     "COMMENTED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -211,7 +211,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			Body:      "Wonderful!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-24T22:48:47Z"),
 			State:     "COMMENTED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -301,7 +301,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			},
 			Body:      "Rraaawwww",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -312,7 +312,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			},
 			Body:      "Great start",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -324,7 +324,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			},
 			Body:      "Yum!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -336,7 +336,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			Body:      "Gone down hill!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
 			State:     "COMMENTED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -440,7 +440,7 @@ func (suite *PRServiceTestSuite) TestGetCommitComments_ValidInput() {
 		Body:      "Great work!",
 		Created:   timeMustParse(stdtime.RFC3339, "2025-04-12T10:00:00Z"),
 		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-04-12T10:00:00Z"),
-		FileDetails: git.File{
+		File: git.File{
 			FullPath: "sha123",
 			FileName: "commit hash sha123",
 		},
@@ -449,7 +449,7 @@ func (suite *PRServiceTestSuite) TestGetCommitComments_ValidInput() {
 		Body:      "I've seen better!",
 		Created:   timeMustParse(stdtime.RFC3339, "2025-04-12T19:00:00Z"),
 		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-04-12T19:00:00Z"),
-		FileDetails: git.File{
+		File: git.File{
 			FullPath: "sha7789",
 			FileName: "commit hash sha7789",
 		},

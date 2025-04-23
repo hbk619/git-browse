@@ -38,6 +38,7 @@ type (
 	}
 	Thread struct {
 		IsResolved bool
+		ID         string
 	}
 
 	File struct {
@@ -46,9 +47,12 @@ type (
 		Line         int
 		LineContents string
 		FileName     string
+		OriginalLine int
+		DiffHunk     string
 	}
 
 	Comment struct {
+		File
 		Body           string
 		CreatedAt      time.Time
 		Created        time.Time `json:"created_at"`
@@ -63,8 +67,6 @@ type (
 		ConflictStatus string
 		Reviews        []string
 		Statuses       []Status
-		ThreadId       string
-		FileDetails    File
 	}
 	Author struct {
 		Login string

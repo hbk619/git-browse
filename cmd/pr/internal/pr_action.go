@@ -92,7 +92,7 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	}
 
 	pr.Interactive.MaxIndex = commentCount - 1
-	pr.LastFullPath = pr.Results[0].FileDetails.FullPath
+	pr.LastFullPath = pr.Results[0].File.FullPath
 	pr.Print()
 	return nil
 }

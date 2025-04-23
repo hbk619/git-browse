@@ -77,7 +77,7 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 		commentList = append(commentList, git.Comment{
 			Author: response.Author,
 			Body:   response.Body,
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -87,7 +87,7 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 
 	for _, comment := range apiComments {
 		if comment.Body != "" {
-			comment.FileDetails = git.File{
+			comment.File = git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			}
@@ -185,7 +185,7 @@ func (gh *PRClient) GetCommitComments(repoOwner, repoName string, pullNumber int
 			return nil, fmt.Errorf("failed to parse comments %w", err)
 		}
 		for _, comment := range Flatten(comments) {
-			comment.FileDetails = git.File{
+			comment.File = git.File{
 				FullPath: commitSHA,
 				FileName: fmt.Sprintf("commit hash %s", commitSHA),
 			}
