@@ -40,7 +40,7 @@ func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 	}
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_no_comments() {
 	prDetails := git.PRDetails{
 		Title:             "Test pr",
 		Comments:          nil,
@@ -75,7 +75,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
 	assert.Equal(suite.T(), expected, details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 	prDetails := git.PRDetails{
 		Title: "Test pr",
 		Comments: []git.Comment{{
@@ -254,7 +254,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 	assert.Equal(suite.T(), expected, details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_pr_not_found() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_pr_not_found() {
 	suite.mockCommandLine.EXPECT().
 		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return("", nil)
@@ -264,7 +264,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_pr_not_found() {
 	assert.Nil(suite.T(), details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_invalid_json_error() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_invalid_json_error() {
 	suite.mockCommandLine.EXPECT().
 		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return("adsa", nil)
@@ -273,7 +273,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_invalid_json_err
 	assert.ErrorContains(suite.T(), err, "failed to create json from pr")
 	assert.Nil(suite.T(), details)
 }
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_review_comments_error() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_review_comments_error() {
 	prDetails := git.PRDetails{
 		Title: "Test pr",
 		Comments: []git.Comment{{
@@ -334,7 +334,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_review_comments_
 	assert.Nil(suite.T(), details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments() {
 	prDetails := git.PRDetails{
 		Title: "Test pr",
 		Comments: []git.Comment{{
