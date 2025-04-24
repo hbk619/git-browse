@@ -48,17 +48,17 @@ func (mr *MockApiMockRecorder) LoadGitHubAPIJSON(command interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadGitHubAPIJSON", reflect.TypeOf((*MockApi)(nil).LoadGitHubAPIJSON), command)
 }
 
-// RunCommand mocks base method.
-func (m *MockApi) RunCommand(command string) (string, error) {
+// LoadGitHubGraphQLJSON mocks base method.
+func (m *MockApi) LoadGitHubGraphQLJSON(query string, variables map[string]interface{}) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunCommand", command)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "LoadGitHubGraphQLJSON", query, variables)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// RunCommand indicates an expected call of RunCommand.
-func (mr *MockApiMockRecorder) RunCommand(command interface{}) *gomock.Call {
+// LoadGitHubGraphQLJSON indicates an expected call of LoadGitHubGraphQLJSON.
+func (mr *MockApiMockRecorder) LoadGitHubGraphQLJSON(query, variables interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunCommand", reflect.TypeOf((*MockApi)(nil).RunCommand), command)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadGitHubGraphQLJSON", reflect.TypeOf((*MockApi)(nil).LoadGitHubGraphQLJSON), query, variables)
 }

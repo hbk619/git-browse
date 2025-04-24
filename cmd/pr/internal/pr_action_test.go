@@ -39,7 +39,7 @@ func (suite *PRActionTestSuite) TestInit_no_comments() {
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(&git.PR{
 		Comments: []git.Comment{},
 		State:    git.State{},
 		Title:    "A spiffing PR",
@@ -58,7 +58,7 @@ func (suite *PRActionTestSuite) TestInit_new_comments_never_viewed_pr() {
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(&git.PR{
 		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State:    git.State{},
 		Title:    "A spiffing PR",
@@ -80,7 +80,7 @@ func (suite *PRActionTestSuite) TestInit_new_comments_since_last_view() {
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(&git.PR{
 		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State:    git.State{},
 		Title:    "A spiffing PR",
@@ -102,7 +102,7 @@ func (suite *PRActionTestSuite) TestInit_verbose_prints_state_and_gets_commit_co
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, true).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, true).Return(&git.PR{
 		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State: git.State{
 			MergeStatus:    "mergable",
@@ -144,7 +144,7 @@ func (suite *PRActionTestSuite) TestInit_no_new_comments_since_last_view() {
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(&git.PR{
 		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State:    git.State{},
 		Title:    "A spiffing PR",
@@ -172,7 +172,7 @@ func (suite *PRActionTestSuite) TestInit_err_getting_comments() {
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
 	expectedErr := errors.New("failed to get comments")
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(nil, expectedErr)
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(nil, expectedErr)
 
 	err := suite.prAction.Init(2, false)
 	suite.ErrorIs(err, expectedErr)
@@ -186,7 +186,7 @@ func (suite *PRActionTestSuite) TestInit_err_getting_commit_comments() {
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
 	expectedErr := errors.New("failed to get commit comments")
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, true).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, true).Return(&git.PR{
 		Comments: []git.Comment{},
 		State:    git.State{},
 		Title:    "A spiffing PR",
@@ -207,7 +207,7 @@ func (suite *PRActionTestSuite) TestInit_err_loading_history() {
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(&git.PR{
 		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State:    git.State{},
 		Title:    "A spiffing PR",
@@ -231,7 +231,7 @@ func (suite *PRActionTestSuite) TestInit_err_saving_history() {
 		PRNumber: 2,
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	suite.mockPrClient.EXPECT().GetMainPRDetails(2, false).Return(&git.PR{
+	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(&git.PR{
 		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State:    git.State{},
 		Title:    "A spiffing PR",

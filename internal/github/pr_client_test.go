@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/git-browse/internal/git"
+	"github.com/hbk619/git-browse/internal/github/graphql"
 	mock_github "github.com/hbk619/git-browse/internal/github/mocks"
+	mock_requests "github.com/hbk619/git-browse/internal/requests/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -16,21 +18,29 @@ import (
 
 type PRServiceTestSuite struct {
 	suite.Suite
-	mockApi   *mock_github.MockApi
-	ctrl      *gomock.Controller
-	prService PRClient
+	mockApi         *mock_github.MockApi
+	ctrl            *gomock.Controller
+	repo            *git.Repo
+	prService       PRClient
+	mockCommandLine *mock_requests.MockCommandLine
 }
 
 func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockApi = mock_github.NewMockApi(suite.ctrl)
-	suite.prService = PRClient{
-		apiClient: suite.mockApi,
+	suite.repo = &git.Repo{
+		Owner:    "luigi",
+		Name:     "castle",
+		PRNumber: 123,
 	}
-
+	suite.mockCommandLine = mock_requests.NewMockCommandLine(suite.ctrl)
+	suite.prService = PRClient{
+		apiClient:         suite.mockApi,
+		commandLineClient: suite.mockCommandLine,
+	}
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_no_comments() {
 	prDetails := git.PRDetails{
 		Title:             "Test pr",
 		Comments:          nil,
@@ -49,16 +59,23 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_no_comments() {
 		State:    git.State{},
 		Title:    "Test pr",
 	}
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
 
-	details, err := suite.prService.GetMainPRDetails(123, false)
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return([]byte("{}"), nil)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 	prDetails := git.PRDetails{
 		Title: "Test pr",
 		Comments: []git.Comment{{
@@ -132,7 +149,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "My wonderful work",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-20T22:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -143,7 +160,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "Rraaawwww",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -154,7 +171,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "Great start",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -166,7 +183,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			},
 			Body:      "Yum!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -178,7 +195,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			Body:      "Gone down hill!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
 			State:     "APPROVED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -190,7 +207,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			Body:      "Keep it up!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:48:47Z"),
 			State:     "COMMENTED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -202,7 +219,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 			Body:      "Wonderful!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-24T22:48:47Z"),
 			State:     "COMMENTED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -221,26 +238,103 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_with_verbose() {
 		},
 		Title: "Test pr",
 	}
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
 		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
 
-	details, err := suite.prService.GetMainPRDetails(123, true)
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return([]byte("{}"), nil)
+	details, err := suite.prService.GetPRDetails(suite.repo, true)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_pr_not_found() {
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_pr_not_found() {
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return("", nil)
 
-	details, err := suite.prService.GetMainPRDetails(123, false)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.ErrorContains(suite.T(), err, "pull request not found")
 	assert.Nil(suite.T(), details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_invalid_json_error() {
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+		Return("adsa", nil)
+
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
+	assert.ErrorContains(suite.T(), err, "failed to create json from pr")
+	assert.Nil(suite.T(), details)
+}
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_review_comments_error() {
+	prDetails := git.PRDetails{
+		Title: "Test pr",
+		Comments: []git.Comment{{
+			Id: "awdasdadad",
+			Author: git.Author{
+				Login: "Bowser",
+			},
+			Body:      "Rraaawwww",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
+		}, {
+			Id: "lkmoimiom",
+			Author: git.Author{
+				Login: "Yoshi",
+			},
+			Body:      "Yum!",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
+		}},
+		Reviews: []git.Comment{{
+			Id: "23213213",
+			Author: git.Author{
+				Login: "Peach",
+			},
+			Body:      "Great start",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
+			State:     "COMMENTED",
+		}, {
+			Id: "67867867867",
+			Author: git.Author{
+				Login: "Peach",
+			},
+			Body:      "Gone down hill!",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
+			State:     "COMMENTED",
+		}},
+		Body:              "",
+		Author:            git.Author{Login: "Mario"},
+		StatusCheckRollup: nil,
+		Mergeable:         "",
+		MergeStateStatus:  "",
+	}
+	marshalled, err := json.Marshal(prDetails)
+	assert.NoError(suite.T(), err)
+
+	expected := errors.New("ahhhhh")
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
+
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return(nil, expected)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
+	assert.ErrorContains(suite.T(), err, expected.Error())
+	assert.Nil(suite.T(), details)
+}
+
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments() {
 	prDetails := git.PRDetails{
 		Title: "Test pr",
 		Comments: []git.Comment{{
@@ -292,7 +386,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			},
 			Body:      "Rraaawwww",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -303,7 +397,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			},
 			Body:      "Great start",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -315,7 +409,7 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			},
 			Body:      "Yum!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
 			},
@@ -327,26 +421,168 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 			Body:      "Gone down hill!",
 			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
 			State:     "COMMENTED",
-			FileDetails: git.File{
+			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
+			},
+		}, {
+			Id: "ABCD_kDOOLvWJM5lOKjk",
+			Author: git.Author{
+				Login: "wario",
+			},
+			Body:      "Looking good!",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-31T09:34:11Z"),
+			File: git.File{
+				FullPath:     ".github/workflows/ci.yaml:2",
+				Path:         ".github/workflows/",
+				FileName:     "ci.yaml",
+				OriginalLine: 2,
+				DiffHunk:     "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]",
+				LineContents: "+on: [push]",
+				Line:         2,
+			},
+			Thread: git.Thread{
+				IsResolved: false,
+				ID:         "ABCD_kdER4tvWJM5AsoQq",
+			},
+		}, {
+			Id: "PDDD_kwDOKtvW309DSOXr_",
+			Author: git.Author{
+				Login: "wario",
+			},
+			Body:      "this is a line comment not in a review",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-31T10:15:10Z"),
+			File: git.File{
+				FullPath:     ".github/workflows/ci.yaml:6",
+				Path:         ".github/workflows/",
+				FileName:     "ci.yaml",
+				OriginalLine: 6,
+				DiffHunk:     "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+				LineContents: "+    steps:",
+				Line:         6,
+			},
+			Thread: git.Thread{
+				IsResolved: true,
+				ID:         "ABCD_kwDOKtvOWM5Aswyn",
+			},
+		}, {
+			Id: "PRRD_kwDOKtvW3900DSOXr_",
+			Author: git.Author{
+				Login: "mario",
+			},
+			Body:      "this is a reply",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-31T11:15:10Z"),
+			File: git.File{
+				FullPath:     ".github/workflows/ci.yaml:6",
+				Path:         ".github/workflows/",
+				FileName:     "ci.yaml",
+				OriginalLine: 6,
+				DiffHunk:     "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+				LineContents: "+    steps:",
+				Line:         6,
+			},
+			Thread: git.Thread{
+				IsResolved: true,
+				ID:         "ABCD_kwDOKtvOWM5Aswyn",
 			},
 		}},
 		State: git.State{},
 		Title: "Test pr",
 	}
-	suite.mockApi.EXPECT().
-		RunCommand("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
+	suite.mockCommandLine.EXPECT().
+		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
 		Return(string(marshalled), nil)
+	variables := map[string]interface{}{
+		"PullRequestId": suite.repo.PRNumber,
+		"Owner":         suite.repo.Owner,
+		"RepoName":      suite.repo.Name,
+	}
 
-	details, err := suite.prService.GetMainPRDetails(123, false)
+	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+		Return([]byte(`{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "ABCD_kdER4tvWJM5AsoQq",
+              "isResolved": false,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "ABCD_kDOOLvWJM5lOKjk",
+                    "body": "Looking good!",
+                    "author": {
+                      "login": "wario"
+                    },
+                    "originalLine": 2,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 2,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T09:34:11Z"
+                  }
+                ],
+                "pageInfo": {
+                  "hasNextPage": false
+                }
+              }
+            },
+            {
+              "id": "ABCD_kwDOKtvOWM5Aswyn",
+              "isResolved": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRD_kwDOKtvW3900DSOXr_",
+                    "body": "this is a reply",
+                    "author": {
+                      "login": "mario"
+                    },
+                    "originalLine": 6,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 6,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T11:15:10Z"
+                  },
+                  {
+                    "id": "PDDD_kwDOKtvW309DSOXr_",
+                    "body": "this is a line comment not in a review",
+                    "author": {
+                      "login": "wario"
+                    },
+                    "originalLine": 6,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 6,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T10:15:10Z"
+                  }
+                ],
+                "pageInfo": {
+                  "hasNextPage": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}`), nil)
+	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidSSHURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("git@github.com:peach/repo-2.git", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -359,8 +595,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidSSHURL() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidHTTPSURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("https://git.com/mario/castle.git", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -373,8 +609,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidHTTPSURL() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_CommandError() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("", errors.New("command failed"))
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -384,8 +620,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_CommandError() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_EmptyRemoteURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -395,8 +631,8 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_EmptyRemoteURL() {
 }
 
 func (suite *PRServiceTestSuite) TestGetRepoDetails_InvalidRemoteURL() {
-	suite.mockApi.EXPECT().
-		RunCommand("git config --get remote.origin.url").
+	suite.mockCommandLine.EXPECT().
+		Run("git config --get remote.origin.url").
 		Return("invalid-url", nil)
 
 	repo, err := suite.prService.GetRepoDetails()
@@ -431,7 +667,7 @@ func (suite *PRServiceTestSuite) TestGetCommitComments_ValidInput() {
 		Body:      "Great work!",
 		Created:   timeMustParse(stdtime.RFC3339, "2025-04-12T10:00:00Z"),
 		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-04-12T10:00:00Z"),
-		FileDetails: git.File{
+		File: git.File{
 			FullPath: "sha123",
 			FileName: "commit hash sha123",
 		},
@@ -440,7 +676,7 @@ func (suite *PRServiceTestSuite) TestGetCommitComments_ValidInput() {
 		Body:      "I've seen better!",
 		Created:   timeMustParse(stdtime.RFC3339, "2025-04-12T19:00:00Z"),
 		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-04-12T19:00:00Z"),
-		FileDetails: git.File{
+		File: git.File{
 			FullPath: "sha7789",
 			FileName: "commit hash sha7789",
 		},

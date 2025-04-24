@@ -38,6 +38,7 @@ type (
 	}
 	Thread struct {
 		IsResolved bool
+		ID         string
 	}
 
 	File struct {
@@ -46,9 +47,12 @@ type (
 		Line         int
 		LineContents string
 		FileName     string
+		OriginalLine int
+		DiffHunk     string
 	}
 
 	Comment struct {
+		File
 		Body           string
 		CreatedAt      time.Time
 		Created        time.Time `json:"created_at"`
@@ -63,12 +67,38 @@ type (
 		ConflictStatus string
 		Reviews        []string
 		Statuses       []Status
-		ThreadId       string
-		FileDetails    File
 	}
 	Author struct {
 		Login string
 	}
+	ReviewThreads struct {
+		Nodes []ThreadNode
+	}
+
+	ThreadNode struct {
+		ID         string
+		IsResolved bool
+		Comments   Comments
+	}
+
+	Comments struct {
+		Nodes []Comment
+	}
+
+	Repository struct {
+		PullRequest PullRequest
+	}
+
+	PullRequest struct {
+		ReviewThreads ReviewThreads
+	}
+
+	GitHubData struct {
+		Data struct {
+			Repository Repository
+		}
+	}
+
 	PRDetails struct {
 		Title             string
 		Comments          []Comment
