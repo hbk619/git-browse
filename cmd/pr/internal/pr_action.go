@@ -68,6 +68,19 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	}
 
 	commentCount := len(pr.Results)
+	pr.updateHistory(prNumber, commentCount)
+
+	if commentCount == 0 {
+		return errors.New("no comments found")
+	}
+
+	pr.Interactive.MaxIndex = commentCount - 1
+	pr.LastFullPath = pr.Results[0].File.FullPath
+	pr.Print()
+	return nil
+}
+
+func (pr *PRAction) updateHistory(prNumber int, commentCount int) {
 	prHistory, err := pr.history.Load()
 	if err != nil {
 		pr.output.Print(fmt.Sprintf("Warning failed to load comments to history: %s", err.Error()))
@@ -86,15 +99,6 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 			pr.output.Print(fmt.Sprintf("Warning failed to save comments to history: %s", err.Error()))
 		}
 	}
-
-	if commentCount == 0 {
-		return errors.New("no comments found")
-	}
-
-	pr.Interactive.MaxIndex = commentCount - 1
-	pr.LastFullPath = pr.Results[0].File.FullPath
-	pr.Print()
-	return nil
 }
 
 func (pr *PRAction) Run() {
