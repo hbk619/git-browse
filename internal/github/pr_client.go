@@ -58,55 +58,12 @@ var mergeStates = map[string]string{
 }
 
 func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
-	verboseFields := ""
-	if verbose {
-		verboseFields = ",mergeStateStatus,mergeable,state,statusCheckRollup"
-	}
-
-	getCommentsCommand := fmt.Sprintf("gh pr view %d --json title,comments,reviews,body,author,createdAt%s", repo.PRNumber, verboseFields)
-	comments, err := gh.commandLineClient.Run(getCommentsCommand)
+	response, err := gh.getMainPrDetails(repo, verbose)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pr details %w", err)
+		return nil, err
 	}
 
-	if len(comments) == 0 {
-		return nil, errors.New("pull request not found")
-	}
-
-	var response git.PRDetails
-	err = json.Unmarshal([]byte(comments), &response)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create json from pr. Received %s %w", comments, err)
-	}
-
-	apiComments := append(response.Comments, response.Reviews...)
-	var commentList []git.Comment
-
-	if response.Body != "" {
-		commentList = append(commentList, git.Comment{
-			Author: response.Author,
-			Body:   response.Body,
-			File: git.File{
-				FullPath: MainThread,
-				FileName: MainThread,
-			},
-			CreatedAt: response.CreatedAt,
-		})
-	}
-
-	for _, comment := range apiComments {
-		if comment.Body != "" {
-			comment.File = git.File{
-				FullPath: MainThread,
-				FileName: MainThread,
-			}
-			commentList = append(commentList, comment)
-		}
-	}
-
-	slices.SortFunc(commentList, func(i, j git.Comment) int {
-		return time.Time.Compare(i.CreatedAt, j.CreatedAt)
-	})
+	commentList := gh.createComments(response)
 
 	state := git.State{}
 	if verbose {
@@ -132,7 +89,66 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 	}, nil
 }
 
-func (gh *PRClient) getReviewStatuses(response git.PRDetails) map[string][]string {
+func (gh *PRClient) createComments(response *git.PRDetails) []git.Comment {
+	apiComments := append(response.Comments, response.Reviews...)
+	var commentList []git.Comment
+
+	if response.Body != "" {
+		commentList = append(commentList, git.Comment{
+			Author: response.Author,
+			Body:   response.Body,
+			File: git.File{
+				FullPath: MainThread,
+				FileName: MainThread,
+			},
+			CreatedAt: response.CreatedAt,
+		})
+	}
+
+	for _, comment := range apiComments {
+		if comment.Body != "" {
+			comment.File = git.File{
+				FullPath: MainThread,
+				FileName: MainThread,
+			}
+			commentList = append(commentList, comment)
+		}
+	}
+	gh.sortCommentsInPlace(commentList)
+	return commentList
+}
+
+func (gh *PRClient) sortCommentsInPlace(commentList []git.Comment) {
+	slices.SortFunc(commentList, func(i, j git.Comment) int {
+		return time.Time.Compare(i.CreatedAt, j.CreatedAt)
+	})
+}
+
+func (gh *PRClient) getMainPrDetails(repo *git.Repo, verbose bool) (*git.PRDetails, error) {
+	verboseFields := ""
+	if verbose {
+		verboseFields = ",mergeStateStatus,mergeable,state,statusCheckRollup"
+	}
+
+	getCommentsCommand := fmt.Sprintf("gh pr view %d --json title,comments,reviews,body,author,createdAt%s", repo.PRNumber, verboseFields)
+	comments, err := gh.commandLineClient.Run(getCommentsCommand)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pr details %w", err)
+	}
+
+	if len(comments) == 0 {
+		return nil, errors.New("pull request not found")
+	}
+
+	var response git.PRDetails
+	err = json.Unmarshal([]byte(comments), &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create json from pr. Received %s %w", comments, err)
+	}
+	return &response, nil
+}
+
+func (gh *PRClient) getReviewStatuses(response *git.PRDetails) map[string][]string {
 	reviewStatus := make(map[string][]string)
 	alreadySeenReviewers := make(map[string]map[string]bool)
 	for _, review := range response.Reviews {
@@ -165,6 +181,11 @@ func (gh *PRClient) getReviewComments(repo *git.Repo) ([]git.Comment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse review comments because: %w", err)
 	}
+	comments := gh.getThreadComments(graphQLData)
+	return comments, nil
+}
+
+func (gh *PRClient) getThreadComments(graphQLData git.GitHubData) []git.Comment {
 	var comments []git.Comment
 	threads := graphQLData.Data.Repository.PullRequest.ReviewThreads.Nodes
 	for _, thread := range threads {
@@ -183,13 +204,11 @@ func (gh *PRClient) getReviewComments(repo *git.Repo) ([]git.Comment, error) {
 
 			threadComments = append(threadComments, comment)
 		}
-		slices.SortFunc(threadComments, func(i, j git.Comment) int {
-			return time.Time.Compare(i.CreatedAt, j.CreatedAt)
-		})
+		gh.sortCommentsInPlace(threadComments)
 
 		comments = append(comments, threadComments...)
 	}
-	return comments, nil
+	return comments
 }
 
 var gitRepoRegex = regexp.MustCompile(`(?:git@|https://)[^:/]+[:/](?P<owner>[^/]+)/(?P<repo>.*)\.git`)

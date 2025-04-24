@@ -465,6 +465,26 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
 				IsResolved: true,
 				ID:         "ABCD_kwDOKtvOWM5Aswyn",
 			},
+		}, {
+			Id: "PRRD_kwDOKtvW3900DSOXr_",
+			Author: git.Author{
+				Login: "mario",
+			},
+			Body:      "this is a reply",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-31T11:15:10Z"),
+			File: git.File{
+				FullPath:     ".github/workflows/ci.yaml:6",
+				Path:         ".github/workflows/",
+				FileName:     "ci.yaml",
+				OriginalLine: 6,
+				DiffHunk:     "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+				LineContents: "+    steps:",
+				Line:         6,
+			},
+			Thread: git.Thread{
+				IsResolved: true,
+				ID:         "ABCD_kwDOKtvOWM5Aswyn",
+			},
 		}},
 		State: git.State{},
 		Title: "Test pr",
@@ -515,6 +535,20 @@ func (suite *PRServiceTestSuite) TestPRService_getMainPRDetails_comments() {
               "isResolved": true,
               "comments": {
                 "nodes": [
+                  {
+                    "id": "PRRD_kwDOKtvW3900DSOXr_",
+                    "body": "this is a reply",
+                    "author": {
+                      "login": "mario"
+                    },
+                    "originalLine": 6,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 6,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T11:15:10Z"
+                  },
                   {
                     "id": "PDDD_kwDOKtvW309DSOXr_",
                     "body": "this is a line comment not in a review",
