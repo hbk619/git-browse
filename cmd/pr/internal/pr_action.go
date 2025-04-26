@@ -13,11 +13,9 @@ import (
 )
 
 type PRAction struct {
-	Index               int
 	Repo                *git.Repo
 	Results             []git.Comment
 	PrintedPathLastTime bool
-	MaxIndex            int
 	LastFullPath        string
 	HelpText            string
 	State               git.State
@@ -101,6 +99,15 @@ func (pr *PRAction) updateHistory(prNumber int, commentCount int) {
 	}
 }
 
+func (pr *PRAction) Reply(contents string) {
+	err := pr.client.Reply(pr.Repo, contents, &pr.Results[pr.Interactive.Index])
+	if err != nil {
+		pr.output.Print(fmt.Sprintf("Warning failed to comment: %s", err.Error()))
+	} else {
+		pr.output.Print("Posted comment")
+	}
+}
+
 func (pr *PRAction) Run() {
 	for {
 		result := internal.StringPrompt("n to go to the next result, p for previous, r to repeat or q to quit")
@@ -111,6 +118,9 @@ func (pr *PRAction) Run() {
 			pr.Interactive.Previous(pr.Print)
 		case "r":
 			pr.Interactive.Repeat(pr.Print)
+		case "c":
+			comment := internal.StringPrompt("Type comment and press enter")
+			pr.Reply(comment)
 		case "q":
 			os.Exit(0)
 		default:

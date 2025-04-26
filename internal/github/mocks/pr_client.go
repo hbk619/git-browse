@@ -78,3 +78,17 @@ func (mr *MockPullRequestClientMockRecorder) GetRepoDetails() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRepoDetails", reflect.TypeOf((*MockPullRequestClient)(nil).GetRepoDetails))
 }
+
+// Reply mocks base method.
+func (m *MockPullRequestClient) Reply(repo *git.Repo, contents string, comment *git.Comment) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reply", repo, contents, comment)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reply indicates an expected call of Reply.
+func (mr *MockPullRequestClientMockRecorder) Reply(repo, contents, comment interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reply", reflect.TypeOf((*MockPullRequestClient)(nil).Reply), repo, contents, comment)
+}

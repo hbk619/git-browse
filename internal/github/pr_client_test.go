@@ -743,6 +743,50 @@ func (suite *PRServiceTestSuite) TestGetCommitComments_ErrorInFetchingComments()
 	suite.Nil(comments)
 }
 
+func (suite *PRServiceTestSuite) TestReply_main_thread() {
+	suite.mockCommandLine.EXPECT().
+		Run(`gh pr comment 2 -b "Thank you"`).
+		Return("", nil)
+	repo := &git.Repo{
+		Owner:    "mario",
+		Name:     "kart",
+		PRNumber: 2,
+	}
+	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"})
+	suite.NoError(err)
+}
+
+func (suite *PRServiceTestSuite) TestReply_thread() {
+	variables := map[string]interface{}{
+		"threadId": "P2323123dm",
+		"body":     "Thank you",
+	}
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.AddCommentMutation, gomock.Eq(variables)).
+		Return([]byte{}, nil)
+	repo := &git.Repo{
+		Owner:    "mario",
+		Name:     "kart",
+		PRNumber: 2,
+	}
+	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
+	suite.NoError(err)
+}
+
+func (suite *PRServiceTestSuite) TestReply_has_error() {
+	expected := errors.New("error")
+	suite.mockCommandLine.EXPECT().
+		Run(`gh pr comment 2 -b "Thank you"`).
+		Return("", expected)
+	repo := &git.Repo{
+		Owner:    "mario",
+		Name:     "kart",
+		PRNumber: 2,
+	}
+	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"})
+	suite.ErrorIs(expected, err)
+}
+
 func TestPRServiceSuite(t *testing.T) {
 	suite.Run(t, new(PRServiceTestSuite))
 }

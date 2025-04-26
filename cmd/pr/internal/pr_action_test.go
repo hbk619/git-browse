@@ -277,6 +277,110 @@ func (suite *PRActionTestSuite) TestPrint_prints_outdated() {
 	suite.prAction.Print()
 }
 
+func (suite *PRActionTestSuite) TestReply() {
+	comments := []git.Comment{{
+		Id: "awdasdadad",
+		Author: git.Author{
+			Login: "Bowser",
+		},
+		Body: "Rraaawwww",
+	}, {
+		Id: "23213213",
+		Author: git.Author{
+			Login: "Peach",
+		},
+		Body:  "Great start",
+		State: "COMMENTED",
+	}, {
+		Id: "lkmoimiom",
+		Author: git.Author{
+			Login: "Yoshi",
+		},
+		Body: "Yum!",
+	},
+	}
+	repo := &git.Repo{
+		Owner:    "mario",
+		Name:     "kart",
+		PRNumber: 2,
+	}
+	suite.prAction.Repo = repo
+	suite.prAction.Results = comments
+	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[0]).Return(nil)
+	suite.mockOutput.EXPECT().Print("Posted comment")
+	suite.prAction.Reply("ta")
+}
+
+func (suite *PRActionTestSuite) TestReply_middle_comment() {
+	comments := []git.Comment{{
+		Id: "awdasdadad",
+		Author: git.Author{
+			Login: "Bowser",
+		},
+		Body: "Rraaawwww",
+	}, {
+		Id: "23213213",
+		Author: git.Author{
+			Login: "Peach",
+		},
+		Body:  "Great start",
+		State: "COMMENTED",
+	}, {
+		Id: "lkmoimiom",
+		Author: git.Author{
+			Login: "Yoshi",
+		},
+		Body: "Yum!",
+	},
+	}
+	repo := &git.Repo{
+		Owner:    "mario",
+		Name:     "kart",
+		PRNumber: 2,
+	}
+	suite.prAction.Repo = repo
+	suite.prAction.Results = comments
+	suite.prAction.Index = 1
+	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1]).Return(nil)
+	suite.mockOutput.EXPECT().Print("Posted comment")
+	suite.prAction.Reply("ta")
+}
+
+func (suite *PRActionTestSuite) TestReply_print_error() {
+	comments := []git.Comment{{
+		Id: "awdasdadad",
+		Author: git.Author{
+			Login: "Bowser",
+		},
+		Body: "Rraaawwww",
+	}, {
+		Id: "23213213",
+		Author: git.Author{
+			Login: "Peach",
+		},
+		Body:  "Great start",
+		State: "COMMENTED",
+	}, {
+		Id: "lkmoimiom",
+		Author: git.Author{
+			Login: "Yoshi",
+		},
+		Body: "Yum!",
+	},
+	}
+	repo := &git.Repo{
+		Owner:    "mario",
+		Name:     "kart",
+		PRNumber: 2,
+	}
+	suite.prAction.Repo = repo
+	suite.prAction.Results = comments
+	suite.prAction.Index = 1
+	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1]).Return(errors.New("some error"))
+	suite.mockOutput.EXPECT().Print("Warning failed to comment: some error")
+	suite.prAction.Reply("ta")
+}
+
 func TestPrActionSuite(t *testing.T) {
 	suite.Run(t, new(PRActionTestSuite))
 }
