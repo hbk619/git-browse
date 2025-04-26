@@ -19,6 +19,7 @@ type PullRequestClient interface {
 	GetCommitComments(repoOwner, repoName string, pullNumber int) ([]git.Comment, error)
 	GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error)
 	GetRepoDetails() (*git.Repo, error)
+	Reply(repo *git.Repo, contents string, comment *git.Comment) error
 }
 
 type GetReviewCommentsQuery struct {
@@ -277,6 +278,21 @@ func (gh *PRClient) GetCommitComments(repoOwner, repoName string, pullNumber int
 	})
 
 	return allComments, nil
+}
+
+func (gh *PRClient) Reply(repo *git.Repo, contents string, comment *git.Comment) error {
+	if comment.Thread.ID == "" {
+		command := fmt.Sprintf(`gh pr comment %d -b "%s"`, repo.PRNumber, contents)
+		_, err := gh.commandLineClient.Run(command)
+		return err
+
+	}
+	variables := map[string]interface{}{
+		"threadId": comment.Thread.ID,
+		"body":     contents,
+	}
+	_, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.AddCommentMutation, variables)
+	return err
 }
 
 func Flatten[T any](lists [][]T) []T {
