@@ -9,7 +9,7 @@ Run `gh auth login` and approve the app in the browser.
 
 ## Installation
 
-Download and copy the [latest release](https://github.com/hbk619/git-browse/releases/download/v0.0.2/git-pr) to somewhere on your path (e.g. `/usr/local/bin`)
+Download and copy the [latest release](https://github.com/hbk619/git-browse/releases/download/v0.0.3/git-pr) to somewhere on your path (e.g. `/usr/local/bin`)
 
 ## Usage
 
