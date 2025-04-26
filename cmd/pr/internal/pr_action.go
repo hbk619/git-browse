@@ -13,11 +13,9 @@ import (
 )
 
 type PRAction struct {
-	Index               int
 	Repo                *git.Repo
 	Results             []git.Comment
 	PrintedPathLastTime bool
-	MaxIndex            int
 	LastFullPath        string
 	HelpText            string
 	State               git.State
