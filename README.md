@@ -15,6 +15,10 @@ Download and copy the [latest release](https://github.com/hbk619/git-browse/rele
 
 `git pr <pr number>`
 
+For full up-to-date flags:
+
+`git pr -h`
+
 ## Developing
 
 Install [Go](https://go.dev/doc/install)

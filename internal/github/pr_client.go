@@ -20,6 +20,7 @@ type PullRequestClient interface {
 	GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error)
 	GetRepoDetails() (*git.Repo, error)
 	Reply(repo *git.Repo, contents string, comment *git.Comment) error
+	Resolve(comment *git.Comment) error
 }
 
 type GetReviewCommentsQuery struct {
@@ -293,6 +294,17 @@ func (gh *PRClient) Reply(repo *git.Repo, contents string, comment *git.Comment)
 	}
 	_, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.AddCommentMutation, variables)
 	return err
+}
+
+func (gh *PRClient) Resolve(comment *git.Comment) error {
+	if comment.Thread.ID != "" {
+		variables := map[string]interface{}{
+			"threadId": comment.Thread.ID,
+		}
+		_, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.ResolveThreadMutation, variables)
+		return err
+	}
+	return errors.New("cannot resolve a main or commit comment")
 }
 
 func Flatten[T any](lists [][]T) []T {

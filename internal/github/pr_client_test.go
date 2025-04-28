@@ -787,6 +787,34 @@ func (suite *PRServiceTestSuite) TestReply_has_error() {
 	suite.ErrorIs(expected, err)
 }
 
+func (suite *PRServiceTestSuite) TestResolve_main_thread() {
+	err := suite.prService.Resolve(&git.Comment{Id: "PDDD_e43oidmdm"})
+	suite.ErrorContains(err, "cannot resolve a main or commit comment")
+}
+
+func (suite *PRServiceTestSuite) TestResolve_thread() {
+	variables := map[string]interface{}{
+		"threadId": "P2323123dm",
+	}
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.ResolveThreadMutation, gomock.Eq(variables)).
+		Return([]byte{}, nil)
+	err := suite.prService.Resolve(&git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
+	suite.NoError(err)
+}
+
+func (suite *PRServiceTestSuite) TestResolve_has_error() {
+	expected := errors.New("error")
+	variables := map[string]interface{}{
+		"threadId": "P2323123dm",
+	}
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.ResolveThreadMutation, gomock.Eq(variables)).
+		Return([]byte{}, expected)
+	err := suite.prService.Resolve(&git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
+	suite.ErrorIs(expected, err)
+}
+
 func TestPRServiceSuite(t *testing.T) {
 	suite.Run(t, new(PRServiceTestSuite))
 }

@@ -108,9 +108,26 @@ func (pr *PRAction) Reply(contents string) {
 	}
 }
 
+func (pr *PRAction) Resolve() {
+	err := pr.client.Resolve(&pr.Results[pr.Interactive.Index])
+	if err != nil {
+		pr.output.Print(fmt.Sprintf("Warning failed to resolve thread: %s", err.Error()))
+	} else {
+		pr.output.Print("Conversation resolved")
+	}
+}
+
 func (pr *PRAction) Run() {
 	for {
-		result := internal.StringPrompt("n to go to the next result, p for previous, r to repeat or q to quit")
+		prompt := "n to go to the next result, p for previous, r to repeat or q to quit"
+		currentComment := pr.Results[pr.Interactive.Index]
+		if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
+			prompt += ", res to resolve"
+		}
+		if currentComment.Thread.IsResolved || currentComment.Outdated {
+			prompt += ", e to expand"
+		}
+		result := internal.StringPrompt(prompt)
 		switch result {
 		case "n":
 			pr.Interactive.Next(pr.Print)
@@ -118,6 +135,11 @@ func (pr *PRAction) Run() {
 			pr.Interactive.Previous(pr.Print)
 		case "r":
 			pr.Interactive.Repeat(pr.Print)
+		case "e":
+			pr.output.Print(currentComment.Author.Login)
+			pr.output.Print(currentComment.Body)
+		case "res":
+			pr.Resolve()
 		case "c":
 			comment := internal.StringPrompt("Type comment and press enter")
 			pr.Reply(comment)
@@ -134,9 +156,11 @@ func (pr *PRAction) Print() {
 	current := pr.Results[pr.Interactive.Index]
 	if current.Thread.IsResolved {
 		pr.output.Print("This comment is resolved")
+		return
 	}
 	if current.Outdated {
 		pr.output.Print("This comment is outdated")
+		return
 	}
 	pr.output.Print(current.Author.Login)
 	pr.output.Print(current.Body)

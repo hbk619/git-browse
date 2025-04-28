@@ -245,7 +245,7 @@ func (suite *PRActionTestSuite) TestInit_err_saving_history() {
 	suite.NoError(err)
 }
 
-func (suite *PRActionTestSuite) TestPrint_prints_threads() {
+func (suite *PRActionTestSuite) TestPrint_prints_resolved_threads() {
 	suite.prAction.Results = []git.Comment{{
 		Body: "Comment 1",
 		Thread: git.Thread{
@@ -257,8 +257,6 @@ func (suite *PRActionTestSuite) TestPrint_prints_threads() {
 	}}
 
 	suite.mockOutput.EXPECT().Print("This comment is resolved")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
 	suite.prAction.Print()
 }
 
@@ -272,8 +270,6 @@ func (suite *PRActionTestSuite) TestPrint_prints_outdated() {
 	}}
 
 	suite.mockOutput.EXPECT().Print("This comment is outdated")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
 	suite.prAction.Print()
 }
 
@@ -379,6 +375,112 @@ func (suite *PRActionTestSuite) TestReply_print_error() {
 	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1]).Return(errors.New("some error"))
 	suite.mockOutput.EXPECT().Print("Warning failed to comment: some error")
 	suite.prAction.Reply("ta")
+}
+
+func (suite *PRActionTestSuite) TestResolve() {
+	comments := []git.Comment{{
+		Id: "awdasdadad",
+		Author: git.Author{
+			Login: "Bowser",
+		},
+		Body: "Rraaawwww",
+		Thread: git.Thread{
+			IsResolved: false,
+			ID:         "1223333",
+		},
+	}, {
+		Id: "23213213",
+		Author: git.Author{
+			Login: "Peach",
+		},
+		Body:  "Great start",
+		State: "COMMENTED",
+	}, {
+		Id: "lkmoimiom",
+		Author: git.Author{
+			Login: "Yoshi",
+		},
+		Body: "Yum!",
+	},
+	}
+	suite.prAction.Results = comments
+	suite.mockPrClient.EXPECT().Resolve(&comments[0]).Return(nil)
+	suite.mockOutput.EXPECT().Print("Conversation resolved")
+	suite.prAction.Resolve()
+}
+
+func (suite *PRActionTestSuite) TestResolve_middle_comment() {
+	comments := []git.Comment{{
+		Id: "awdasdadad",
+		Author: git.Author{
+			Login: "Bowser",
+		},
+		Body: "Rraaawwww",
+		Thread: git.Thread{
+			IsResolved: false,
+			ID:         "1223333",
+		},
+	}, {
+		Id: "23213213",
+		Author: git.Author{
+			Login: "Peach",
+		},
+		Body:  "Great start",
+		State: "COMMENTED",
+		Thread: git.Thread{
+			IsResolved: false,
+			ID:         "4343434",
+		},
+	}, {
+		Id: "lkmoimiom",
+		Author: git.Author{
+			Login: "Yoshi",
+		},
+		Body: "Yum!",
+	},
+	}
+	suite.prAction.Results = comments
+	suite.prAction.Index = 1
+	suite.mockPrClient.EXPECT().Resolve(&comments[1]).Return(nil)
+	suite.mockOutput.EXPECT().Print("Conversation resolved")
+	suite.prAction.Resolve()
+}
+
+func (suite *PRActionTestSuite) TestResolve_error() {
+	comments := []git.Comment{{
+		Id: "awdasdadad",
+		Author: git.Author{
+			Login: "Bowser",
+		},
+		Body: "Rraaawwww",
+		Thread: git.Thread{
+			IsResolved: false,
+			ID:         "1223333",
+		},
+	}, {
+		Id: "23213213",
+		Author: git.Author{
+			Login: "Peach",
+		},
+		Body:  "Great start",
+		State: "COMMENTED",
+		Thread: git.Thread{
+			IsResolved: false,
+			ID:         "4343434",
+		},
+	}, {
+		Id: "lkmoimiom",
+		Author: git.Author{
+			Login: "Yoshi",
+		},
+		Body: "Yum!",
+	},
+	}
+	suite.prAction.Results = comments
+	suite.prAction.Index = 2
+	suite.mockPrClient.EXPECT().Resolve(&comments[2]).Return(errors.New("some error"))
+	suite.mockOutput.EXPECT().Print("Warning failed to resolve thread: some error")
+	suite.prAction.Resolve()
 }
 
 func TestPrActionSuite(t *testing.T) {
