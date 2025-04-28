@@ -257,8 +257,6 @@ func (suite *PRActionTestSuite) TestPrint_prints_resolved_threads() {
 	}}
 
 	suite.mockOutput.EXPECT().Print("This comment is resolved")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
 	suite.prAction.Print()
 }
 
@@ -272,8 +270,6 @@ func (suite *PRActionTestSuite) TestPrint_prints_outdated() {
 	}}
 
 	suite.mockOutput.EXPECT().Print("This comment is outdated")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
 	suite.prAction.Print()
 }
 

@@ -119,11 +119,13 @@ func (pr *PRAction) Resolve() {
 
 func (pr *PRAction) Run() {
 	for {
-		result := internal.StringPrompt("n to go to the next result, p for previous, r to repeat or q to quit")
 		prompt := "n to go to the next result, p for previous, r to repeat or q to quit"
 		currentComment := pr.Results[pr.Interactive.Index]
 		if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
 			prompt += ", res to resolve"
+		}
+		if currentComment.Thread.IsResolved || currentComment.Outdated {
+			prompt += ", e to expand"
 		}
 		result := internal.StringPrompt(prompt)
 		switch result {
@@ -133,6 +135,9 @@ func (pr *PRAction) Run() {
 			pr.Interactive.Previous(pr.Print)
 		case "r":
 			pr.Interactive.Repeat(pr.Print)
+		case "e":
+			pr.output.Print(currentComment.Author.Login)
+			pr.output.Print(currentComment.Body)
 		case "res":
 			pr.Resolve()
 		case "c":
@@ -151,9 +156,11 @@ func (pr *PRAction) Print() {
 	current := pr.Results[pr.Interactive.Index]
 	if current.Thread.IsResolved {
 		pr.output.Print("This comment is resolved")
+		return
 	}
 	if current.Outdated {
 		pr.output.Print("This comment is outdated")
+		return
 	}
 	pr.output.Print(current.Author.Login)
 	pr.output.Print(current.Body)
