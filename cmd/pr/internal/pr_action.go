@@ -108,9 +108,24 @@ func (pr *PRAction) Reply(contents string) {
 	}
 }
 
+func (pr *PRAction) Resolve() {
+	err := pr.client.Resolve(&pr.Results[pr.Interactive.Index])
+	if err != nil {
+		pr.output.Print(fmt.Sprintf("Warning failed to resolve thread: %s", err.Error()))
+	} else {
+		pr.output.Print("Conversation resolved")
+	}
+}
+
 func (pr *PRAction) Run() {
 	for {
 		result := internal.StringPrompt("n to go to the next result, p for previous, r to repeat or q to quit")
+		prompt := "n to go to the next result, p for previous, r to repeat or q to quit"
+		currentComment := pr.Results[pr.Interactive.Index]
+		if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
+			prompt += ", res to resolve"
+		}
+		result := internal.StringPrompt(prompt)
 		switch result {
 		case "n":
 			pr.Interactive.Next(pr.Print)
@@ -118,6 +133,8 @@ func (pr *PRAction) Run() {
 			pr.Interactive.Previous(pr.Print)
 		case "r":
 			pr.Interactive.Repeat(pr.Print)
+		case "res":
+			pr.Resolve()
 		case "c":
 			comment := internal.StringPrompt("Type comment and press enter")
 			pr.Reply(comment)

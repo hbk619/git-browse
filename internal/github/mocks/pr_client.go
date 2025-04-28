@@ -92,3 +92,17 @@ func (mr *MockPullRequestClientMockRecorder) Reply(repo, contents, comment inter
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reply", reflect.TypeOf((*MockPullRequestClient)(nil).Reply), repo, contents, comment)
 }
+
+// Resolve mocks base method.
+func (m *MockPullRequestClient) Resolve(comment *git.Comment) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", comment)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockPullRequestClientMockRecorder) Resolve(comment interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockPullRequestClient)(nil).Resolve), comment)
+}
