@@ -1,9 +1,7 @@
 package github
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/git-browse/internal/git"
 	"github.com/hbk619/git-browse/internal/github/graphql"
@@ -41,106 +39,202 @@ func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 }
 
 func (suite *PRServiceTestSuite) TestPRService_getPrDetails_no_comments() {
-	prDetails := git.PRDetails{
-		Title:             "Test pr",
-		Comments:          nil,
-		Reviews:           nil,
-		Body:              "",
-		Author:            git.Author{Login: "Mario"},
-		StatusCheckRollup: nil,
-		Mergeable:         "",
-		MergeStateStatus:  "",
-	}
-	marshalled, err := json.Marshal(prDetails)
-	assert.NoError(suite.T(), err)
+	prDetails := `{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "commits": {
+          "nodes": [
+            {
+              "commit": {
+                "oid": "712000baad1a5b641d0308d45be98444b521333",
+                "comments": {
+                  "nodes": []
+                }
+              }
+            },
+            {
+              "commit": {
+                "oid": "b4dsd44214789e2ae1f9c83fb6cfeaea24fr424",
+                "comments": null
+              }
+            },
+            {
+              "commit": {
+                "oid": "9c637cc6b5d6099b443980daf91248c354321ss221",
+                "comments": {
+                  "nodes": []
+                }
+              }
+            }
+          ]
+        },
+        "reviews": null,
+        "body": "",
+        "author": {
+          "login": "Mario"
+        },
+        "title": "Test pr",
+        "createdAt": "2025-02-20T22:38:47Z",
+        "reviewThreads": null,
+        "comments": null
+      }
+    }
+  }
+}`
 
 	expected := &git.PR{
 		Comments: nil,
 		State:    git.State{},
 		Title:    "Test pr",
 	}
-	suite.mockCommandLine.EXPECT().
-		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
-		Return(string(marshalled), nil)
+
 	variables := map[string]interface{}{
 		"PullRequestId": suite.repo.PRNumber,
 		"Owner":         suite.repo.Owner,
 		"RepoName":      suite.repo.Name,
 	}
-
-	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
-		Return([]byte("{}"), nil)
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(false), variables).
+		Return([]byte(prDetails), nil)
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
 
 func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
-	prDetails := git.PRDetails{
-		Title: "Test pr",
-		Comments: []git.Comment{{
-			Id: "awdasdadad",
-			Author: git.Author{
-				Login: "Bowser",
+	prDetails := `{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "commits": {
+          "nodes": [
+            {
+              "commit": {
+                "oid": "712000baad1ee2b6385d0308d45be98444b521333",
+                "comments": {
+                  "nodes": []
+                }
+              }
+            },
+            {
+              "commit": {
+                "oid": "b45facb711478f4eae1f9c83fb6cfeaea24fr224",
+                "comments": {
+                  "nodes": [
+                    {
+                      "body": "This is a commit comment",
+                      "author": {
+                        "login": "Mario"
+                      },
+                      "createdAt": "2024-07-23T09:30:30Z"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "commit": {
+                "oid": "9c637cc6b5d6099b76980daf91248c35090j1es211",
+                "comments": {
+                  "nodes": []
+                }
+              }
+            }
+          ]
+        },
+        "reviews": {
+          "pageInfo": {
+            "hasNextPage": false
+          },
+          "nodes": [
+            {
+              "createdAt": "2025-02-22T21:58:47Z",
+              "body": "Great start",
+              "state": "COMMENTED",
+              "author": {
+                "login": "Peach"
+              }
 			},
-			Body:      "Rraaawwww",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-		}, {
-			Id: "lkmoimiom",
-			Author: git.Author{
-				Login: "Yoshi",
+            {
+			  "author": {
+                "login": "Peach"
+              },
+              "state": "APPROVED",
+              "body": "Gone down hill!",
+              "createdAt": "2025-02-23T22:38:47Z"
+            },
+            {
+              "author": {
+                "login": "Bowser"
+              },
+              "state": "COMMENTED",
+              "body": "Keep it up!",
+              "createdAt": "2025-02-23T22:48:47Z"
+            },
+            {
+              "author": {
+                "login": "Bowser"
+              },
+              "state": "COMMENTED",
+              "body": "Wonderful!",
+              "createdAt": "2025-02-24T22:48:47Z"
+            }
+          ]
+        },
+        "statusCheckRollup": {
+          "state": "FAILURE",
+          "contexts": {
+            "nodes": [
+              {
+                "status": "COMPLETED",
+                "name": "Test",
+                "conclusion": "SUCCESS"
+              },
+              {
+                "status": "COMPLETED",
+                "name": "Test1",
+                "conclusion": "FAILURE"
+              }
+            ]
+          }
+        },
+        "mergeable": "CONFLICTING",
+        "mergeStateStatus": "BLOCKED",
+        "body": "My wonderful work",
+        "author": {
+          "login": "Mario"
+        },
+        "title": "Test pr",
+        "createdAt": "2025-02-20T22:38:47Z",
+        "reviewThreads": null,
+        "comments": {
+          "pageInfo": {
+            "hasNextPage": false
+          },
+          "nodes": [
+            {
+              "id": "awdasdadad",
+              "createdAt": "2025-02-22T21:38:47Z",
+              "body": "Rraaawwww",
+              "author": {
+                "login": "Bowser"
+              }
 			},
-			Body:      "Yum!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-		}},
-		Reviews: []git.Comment{{
-			Id: "23213213",
-			Author: git.Author{
-				Login: "Peach",
-			},
-			Body:      "Great start",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			State:     "COMMENTED",
-		}, {
-			Id: "67867867867",
-			Author: git.Author{
-				Login: "Peach",
-			},
-			Body:      "Gone down hill!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
-			State:     "APPROVED",
-		}, {
-			Id: "67867867867",
-			Author: git.Author{
-				Login: "Bowser",
-			},
-			Body:      "Keep it up!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:48:47Z"),
-			State:     "COMMENTED",
-		}, {
-			Id: "67867867867",
-			Author: git.Author{
-				Login: "Bowser",
-			},
-			Body:      "Wonderful!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-24T22:48:47Z"),
-			State:     "COMMENTED",
-		}},
-		Body:      "My wonderful work",
-		Author:    git.Author{Login: "Mario"},
-		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-20T22:38:47Z"),
-		StatusCheckRollup: []git.Status{{
-			Name:       "Test",
-			Conclusion: "SUCCESS",
-		}, {
-			Name:       "Test1",
-			Conclusion: "FAILURE",
-		}},
-		Mergeable:        "CONFLICTING",
-		MergeStateStatus: "BLOCKED",
-	}
-	marshalled, err := json.Marshal(prDetails)
-	assert.NoError(suite.T(), err)
+            {
+              "id": "lkmoimiom",
+              "createdAt": "2025-02-22T22:38:47Z",
+              "body": "Yum!",
+              "author": {
+                "login": "Yoshi"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}`
 
 	expected := &git.PR{
 		Comments: []git.Comment{{
@@ -165,7 +259,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 				FileName: MainThread,
 			},
 		}, {
-			Id: "23213213",
 			Author: git.Author{
 				Login: "Peach",
 			},
@@ -188,7 +281,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 				FileName: MainThread,
 			},
 		}, {
-			Id: "67867867867",
 			Author: git.Author{
 				Login: "Peach",
 			},
@@ -200,7 +292,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 				FileName: MainThread,
 			},
 		}, {
-			Id: "67867867867",
 			Author: git.Author{
 				Login: "Bowser",
 			},
@@ -212,7 +303,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 				FileName: MainThread,
 			},
 		}, {
-			Id: "67867867867",
 			Author: git.Author{
 				Login: "Bowser",
 			},
@@ -222,6 +312,16 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 			File: git.File{
 				FullPath: MainThread,
 				FileName: MainThread,
+			},
+		}, {
+			Author: git.Author{
+				Login: "Mario",
+			},
+			Body:      "This is a commit comment",
+			CreatedAt: timeMustParse(stdtime.RFC3339, "2024-07-23T09:30:30Z"),
+			File: git.File{
+				FullPath: "b45facb711478f4eae1f9c83fb6cfeaea24fr224",
+				FileName: "commit hash b45facb711478f4eae1f9c83fb6cfeaea24fr224",
 			},
 		}},
 		State: git.State{
@@ -238,145 +338,160 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 		},
 		Title: "Test pr",
 	}
-	suite.mockCommandLine.EXPECT().
-		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt,mergeStateStatus,mergeable,state,statusCheckRollup").
-		Return(string(marshalled), nil)
 	variables := map[string]interface{}{
 		"PullRequestId": suite.repo.PRNumber,
 		"Owner":         suite.repo.Owner,
 		"RepoName":      suite.repo.Name,
 	}
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(true), variables).
+		Return([]byte(prDetails), nil)
 
-	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
-		Return([]byte("{}"), nil)
 	details, err := suite.prService.GetPRDetails(suite.repo, true)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
 
 func (suite *PRServiceTestSuite) TestPRService_getPrDetails_pr_not_found() {
-	suite.mockCommandLine.EXPECT().
-		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
-		Return("", nil)
-
-	details, err := suite.prService.GetPRDetails(suite.repo, false)
-	assert.ErrorContains(suite.T(), err, "pull request not found")
-	assert.Nil(suite.T(), details)
-}
-
-func (suite *PRServiceTestSuite) TestPRService_getPrDetails_invalid_json_error() {
-	suite.mockCommandLine.EXPECT().
-		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
-		Return("adsa", nil)
-
-	details, err := suite.prService.GetPRDetails(suite.repo, false)
-	assert.ErrorContains(suite.T(), err, "failed to create json from pr")
-	assert.Nil(suite.T(), details)
-}
-func (suite *PRServiceTestSuite) TestPRService_getPrDetails_review_comments_error() {
-	prDetails := git.PRDetails{
-		Title: "Test pr",
-		Comments: []git.Comment{{
-			Id: "awdasdadad",
-			Author: git.Author{
-				Login: "Bowser",
-			},
-			Body:      "Rraaawwww",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-		}, {
-			Id: "lkmoimiom",
-			Author: git.Author{
-				Login: "Yoshi",
-			},
-			Body:      "Yum!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-		}},
-		Reviews: []git.Comment{{
-			Id: "23213213",
-			Author: git.Author{
-				Login: "Peach",
-			},
-			Body:      "Great start",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			State:     "COMMENTED",
-		}, {
-			Id: "67867867867",
-			Author: git.Author{
-				Login: "Peach",
-			},
-			Body:      "Gone down hill!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
-			State:     "COMMENTED",
-		}},
-		Body:              "",
-		Author:            git.Author{Login: "Mario"},
-		StatusCheckRollup: nil,
-		Mergeable:         "",
-		MergeStateStatus:  "",
-	}
-	marshalled, err := json.Marshal(prDetails)
-	assert.NoError(suite.T(), err)
-
-	expected := errors.New("ahhhhh")
-	suite.mockCommandLine.EXPECT().
-		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
-		Return(string(marshalled), nil)
 	variables := map[string]interface{}{
 		"PullRequestId": suite.repo.PRNumber,
 		"Owner":         suite.repo.Owner,
 		"RepoName":      suite.repo.Name,
 	}
-
-	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
+	expected := errors.New("failed to find pr")
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(false), variables).
 		Return(nil, expected)
+
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.ErrorContains(suite.T(), err, expected.Error())
 	assert.Nil(suite.T(), details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments() {
-	prDetails := git.PRDetails{
-		Title: "Test pr",
-		Comments: []git.Comment{{
-			Id: "awdasdadad",
-			Author: git.Author{
-				Login: "Bowser",
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments_with_threads() {
+	prDetails := `{
+  "data": {
+    "repository": {
+      "pullRequest": {
+
+        "reviews": {
+          "pageInfo": {
+            "hasNextPage": false
+          },
+          "nodes": [
+            {
+              "createdAt": "2025-02-22T21:58:47Z",
+              "body": "Great start",
+              "state": "COMMENTED",
+              "author": {
+                "login": "Peach"
+              }
 			},
-			Body:      "Rraaawwww",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:38:47Z"),
-		}, {
-			Id: "lkmoimiom",
-			Author: git.Author{
-				Login: "Yoshi",
+            {
+			  "author": {
+                "login": "Peach"
+              },
+              "state": "COMMENTED",
+              "body": "Gone down hill!",
+              "createdAt": "2025-02-23T22:38:47Z"
+            }
+          ]
+        },
+        "body": "",
+        "author": {
+          "login": "Mario"
+        },
+        "title": "Test pr",
+        "createdAt": "2025-02-20T22:38:47Z",
+        "reviewThreads": {
+          "nodes" : [ {
+            "id" : "ABCD_kdER4tvWJM5AsoQq",
+            "isResolved" : false,
+            "comments" : {
+              "nodes" : [ {
+                "id" : "ABCD_kDOOLvWJM5lOKjk",
+                "body" : "Looking good!",
+                "author" : {
+                  "login" : "wario"
+                },
+                "originalLine" : 2,
+                "originalStartLine" : null,
+                "path" : ".github/workflows/ci.yaml",
+                "line" : 2,
+                "diffHunk" : "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]",
+                "outdated" : false,
+                "createdAt" : "2024-07-31T09:34:11Z"
+              } ],
+              "pageInfo" : {
+                "hasNextPage" : false
+              }
+            }
+          }, {
+            "id" : "ABCD_kwDOKtvOWM5Aswyn",
+            "isResolved" : true,
+            "comments" : {
+              "nodes" : [ 
+				{
+                    "id": "PRRD_kwDOKtvW3900DSOXr_",
+                    "body": "this is a reply",
+                    "author": {
+                      "login": "mario"
+                    },
+                    "originalLine": 6,
+                    "originalStartLine": null,
+                    "path": ".github/workflows/ci.yaml",
+                    "line": 6,
+                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+                    "outdated": false,
+                    "createdAt": "2024-07-31T11:15:10Z"
+				}, {
+                "id" : "PDDD_kwDOKtvW309DSOXr_",
+                "body" : "this is a line comment not in a review",
+                "author" : {
+                  "login" : "wario"
+                },
+                "originalLine" : 6,
+                "originalStartLine" : null,
+                "path" : ".github/workflows/ci.yaml",
+                "line" : 6,
+                "diffHunk" : "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
+                "outdated" : false,
+                "createdAt" : "2024-07-31T10:15:10Z"
+              } ],
+              "pageInfo" : {
+                "hasNextPage" : false
+              }
+            }
+          }
+		]
+        },
+        "comments": {
+          "pageInfo": {
+            "hasNextPage": false
+          },
+          "nodes": [
+            {
+              "id": "awdasdadad",
+              "createdAt": "2025-02-22T21:38:47Z",
+              "body": "Rraaawwww",
+              "author": {
+                "login": "Bowser"
+              }
 			},
-			Body:      "Yum!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T22:38:47Z"),
-		}},
-		Reviews: []git.Comment{{
-			Id: "23213213",
-			Author: git.Author{
-				Login: "Peach",
-			},
-			Body:      "Great start",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-22T21:58:47Z"),
-			State:     "COMMENTED",
-		}, {
-			Id: "67867867867",
-			Author: git.Author{
-				Login: "Peach",
-			},
-			Body:      "Gone down hill!",
-			CreatedAt: timeMustParse(stdtime.RFC3339, "2025-02-23T22:38:47Z"),
-			State:     "COMMENTED",
-		}},
-		Body:              "",
-		Author:            git.Author{Login: "Mario"},
-		StatusCheckRollup: nil,
-		Mergeable:         "",
-		MergeStateStatus:  "",
-	}
-	marshalled, err := json.Marshal(prDetails)
-	assert.NoError(suite.T(), err)
+            {
+              "id": "lkmoimiom",
+              "createdAt": "2025-02-22T22:38:47Z",
+              "body": "Yum!",
+              "author": {
+                "login": "Yoshi"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}`
 
 	expected := &git.PR{
 		Comments: []git.Comment{{
@@ -391,7 +506,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments() {
 				FileName: MainThread,
 			},
 		}, {
-			Id: "23213213",
 			Author: git.Author{
 				Login: "Peach",
 			},
@@ -414,7 +528,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments() {
 				FileName: MainThread,
 			},
 		}, {
-			Id: "67867867867",
 			Author: git.Author{
 				Login: "Peach",
 			},
@@ -489,92 +602,15 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments() {
 		State: git.State{},
 		Title: "Test pr",
 	}
-	suite.mockCommandLine.EXPECT().
-		Run("gh pr view 123 --json title,comments,reviews,body,author,createdAt").
-		Return(string(marshalled), nil)
 	variables := map[string]interface{}{
 		"PullRequestId": suite.repo.PRNumber,
 		"Owner":         suite.repo.Owner,
 		"RepoName":      suite.repo.Name,
 	}
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(false), variables).
+		Return([]byte(prDetails), nil)
 
-	suite.mockApi.EXPECT().LoadGitHubGraphQLJSON(graphql.GetReviewCommentsQuery, variables).
-		Return([]byte(`{
-  "data": {
-    "repository": {
-      "pullRequest": {
-        "reviewThreads": {
-          "nodes": [
-            {
-              "id": "ABCD_kdER4tvWJM5AsoQq",
-              "isResolved": false,
-              "comments": {
-                "nodes": [
-                  {
-                    "id": "ABCD_kDOOLvWJM5lOKjk",
-                    "body": "Looking good!",
-                    "author": {
-                      "login": "wario"
-                    },
-                    "originalLine": 2,
-                    "originalStartLine": null,
-                    "path": ".github/workflows/ci.yaml",
-                    "line": 2,
-                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]",
-                    "outdated": false,
-                    "createdAt": "2024-07-31T09:34:11Z"
-                  }
-                ],
-                "pageInfo": {
-                  "hasNextPage": false
-                }
-              }
-            },
-            {
-              "id": "ABCD_kwDOKtvOWM5Aswyn",
-              "isResolved": true,
-              "comments": {
-                "nodes": [
-                  {
-                    "id": "PRRD_kwDOKtvW3900DSOXr_",
-                    "body": "this is a reply",
-                    "author": {
-                      "login": "mario"
-                    },
-                    "originalLine": 6,
-                    "originalStartLine": null,
-                    "path": ".github/workflows/ci.yaml",
-                    "line": 6,
-                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
-                    "outdated": false,
-                    "createdAt": "2024-07-31T11:15:10Z"
-                  },
-                  {
-                    "id": "PDDD_kwDOKtvW309DSOXr_",
-                    "body": "this is a line comment not in a review",
-                    "author": {
-                      "login": "wario"
-                    },
-                    "originalLine": 6,
-                    "originalStartLine": null,
-                    "path": ".github/workflows/ci.yaml",
-                    "line": 6,
-                    "diffHunk": "@@ -0,0 +1,8 @@\n+name: things\n+on: [push]\n+jobs:\n+  check-bats-version:\n+    runs-on: ubuntu-latest\n+    steps:",
-                    "outdated": false,
-                    "createdAt": "2024-07-31T10:15:10Z"
-                  }
-                ],
-                "pageInfo": {
-                  "hasNextPage": false
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  }
-}`), nil)
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
@@ -639,108 +675,6 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_InvalidRemoteURL() {
 
 	suite.ErrorContains(err, "could not parse git remote URL")
 	suite.Nil(repo)
-}
-
-func (suite *PRServiceTestSuite) TestGetCommitComments_ValidInput() {
-	getCommitsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/pulls/123/commits"`
-	getCommentsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/commits/%s/comments"`
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(getCommitsCommand).
-		Return([]byte(`[[{"sha": "sha123"},{"sha": "sha456"},{"sha": "sha7789"}]]`), nil)
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(fmt.Sprintf(getCommentsCommand, "sha123")).
-		Return([]byte(`[[{"body": "Great work!", "created_at": "2025-04-12T10:00:00Z"}]]`), nil)
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(fmt.Sprintf(getCommentsCommand, "sha456")).
-		Return([]byte("[[]]"), nil)
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(fmt.Sprintf(getCommentsCommand, "sha7789")).
-		Return([]byte(`[[{"body": "I've seen better!", "created_at": "2025-04-12T19:00:00Z"}]]`), nil)
-
-	comments, err := suite.prService.GetCommitComments("luigi", "mansion", 123)
-
-	expectedComment1 := git.Comment{
-		Body:      "Great work!",
-		Created:   timeMustParse(stdtime.RFC3339, "2025-04-12T10:00:00Z"),
-		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-04-12T10:00:00Z"),
-		File: git.File{
-			FullPath: "sha123",
-			FileName: "commit hash sha123",
-		},
-	}
-	expectedComment2 := git.Comment{
-		Body:      "I've seen better!",
-		Created:   timeMustParse(stdtime.RFC3339, "2025-04-12T19:00:00Z"),
-		CreatedAt: timeMustParse(stdtime.RFC3339, "2025-04-12T19:00:00Z"),
-		File: git.File{
-			FullPath: "sha7789",
-			FileName: "commit hash sha7789",
-		},
-	}
-	suite.NoError(err)
-	suite.Len(comments, 2)
-	suite.Equal(expectedComment1, comments[0])
-	suite.Equal(expectedComment2, comments[1])
-}
-
-func (suite *PRServiceTestSuite) TestGetCommitComments_CommitsNotFound() {
-	getCommitsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/pulls/123/commits"`
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(getCommitsCommand).
-		Return(nil, errors.New("pull request not found"))
-
-	comments, err := suite.prService.GetCommitComments("luigi", "mansion", 123)
-
-	suite.Error(err)
-	suite.Contains(err.Error(), "pull request not found")
-	suite.Nil(comments)
-}
-
-func (suite *PRServiceTestSuite) TestGetCommitComments_NoCommentsForCommit() {
-	getCommitsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/pulls/123/commits"`
-	getCommentsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/commits/sha123/comments"`
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(getCommitsCommand).
-		Return([]byte(`[[{"sha": "sha123"}]]`), nil)
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(getCommentsCommand).
-		Return([]byte("[[]]"), nil)
-
-	comments, err := suite.prService.GetCommitComments("luigi", "mansion", 123)
-
-	suite.NoError(err)
-	suite.Empty(comments)
-}
-
-func (suite *PRServiceTestSuite) TestGetCommitComments_ErrorInFetchingComments() {
-	getCommitsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/pulls/123/commits"`
-	getCommentsCommand := `gh api --paginate --slurp  -H "X-GitHub-Api-Version: 2022-11-28" \
--H "Accept: application/vnd.github+json" "/repos/luigi/mansion/commits/sha123/comments"`
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(getCommitsCommand).
-		Return([]byte(`[[{"sha": "sha123"}]]`), nil)
-
-	suite.mockApi.EXPECT().
-		LoadGitHubAPIJSON(getCommentsCommand).
-		Return(nil, errors.New("commit not found"))
-
-	comments, err := suite.prService.GetCommitComments("luigi", "mansion", 123)
-
-	suite.Error(err)
-	suite.Contains(err.Error(), "commit not found")
-	suite.Nil(comments)
 }
 
 func (suite *PRServiceTestSuite) TestReply_main_thread() {

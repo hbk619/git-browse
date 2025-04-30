@@ -34,21 +34,6 @@ func (m *MockPullRequestClient) EXPECT() *MockPullRequestClientMockRecorder {
 	return m.recorder
 }
 
-// GetCommitComments mocks base method.
-func (m *MockPullRequestClient) GetCommitComments(repoOwner, repoName string, pullNumber int) ([]git.Comment, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCommitComments", repoOwner, repoName, pullNumber)
-	ret0, _ := ret[0].([]git.Comment)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetCommitComments indicates an expected call of GetCommitComments.
-func (mr *MockPullRequestClientMockRecorder) GetCommitComments(repoOwner, repoName, pullNumber interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommitComments", reflect.TypeOf((*MockPullRequestClient)(nil).GetCommitComments), repoOwner, repoName, pullNumber)
-}
-
 // GetPRDetails mocks base method.
 func (m *MockPullRequestClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
 	m.ctrl.T.Helper()
