@@ -9,6 +9,7 @@ import (
 	"github.com/hbk619/git-browse/internal/github"
 	"github.com/hbk619/git-browse/internal/history"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -65,7 +66,6 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	}
 
 	pr.Interactive.MaxIndex = commentCount - 1
-	pr.LastFullPath = pr.Results[0].File.FullPath
 	pr.Print()
 	return nil
 }
@@ -113,6 +113,7 @@ func (pr *PRAction) Run() {
 	for {
 		prompt := "n to go to the next result, p for previous, r to repeat or q to quit"
 		currentComment := pr.Results[pr.Interactive.Index]
+		pr.LastFullPath = currentComment.File.FullPath
 		if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
 			prompt += ", res to resolve"
 		}
@@ -128,8 +129,8 @@ func (pr *PRAction) Run() {
 		case "r":
 			pr.Interactive.Repeat(pr.Print)
 		case "e":
-			pr.output.Print(currentComment.Author.Login)
-			pr.output.Print(currentComment.Body)
+			pr.LastFullPath = ""
+			pr.printContents(currentComment)
 		case "res":
 			pr.Resolve()
 		case "c":
@@ -153,6 +154,18 @@ func (pr *PRAction) Print() {
 	if current.Outdated {
 		pr.output.Print("This comment is outdated")
 		return
+	}
+	pr.printContents(current)
+}
+
+func (pr *PRAction) printContents(current git.Comment) {
+	if pr.LastFullPath != current.File.FullPath {
+		pr.output.Print(current.File.FileName)
+		if current.File.Path != "" {
+			pr.output.Print(current.File.Path)
+			pr.output.Print(strconv.Itoa(current.File.Line))
+			pr.output.Print(current.File.LineContents)
+		}
 	}
 	pr.output.Print(current.Author.Login)
 	pr.output.Print(current.Body)

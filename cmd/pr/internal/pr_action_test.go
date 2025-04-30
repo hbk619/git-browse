@@ -5,6 +5,7 @@ import (
 	"github.com/golang/mock/gomock"
 	mock_filesystem "github.com/hbk619/git-browse/internal/filesystem/mocks"
 	"github.com/hbk619/git-browse/internal/git"
+	"github.com/hbk619/git-browse/internal/github"
 	mock_github "github.com/hbk619/git-browse/internal/github/mocks"
 	"github.com/hbk619/git-browse/internal/history"
 	mock_history "github.com/hbk619/git-browse/internal/history/mocks"
@@ -247,6 +248,55 @@ func (suite *PRActionTestSuite) TestPrint_prints_outdated() {
 	}}
 
 	suite.mockOutput.EXPECT().Print("This comment is outdated")
+	suite.prAction.Print()
+}
+
+func (suite *PRActionTestSuite) TestPrint_prints_file_info_with_path() {
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{FullPath: github.MainThread},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.LastFullPath = github.MainThread
+	suite.prAction.Index = 1
+	suite.mockOutput.EXPECT().Print("README.md")
+	suite.mockOutput.EXPECT().Print("/")
+	suite.mockOutput.EXPECT().Print("28")
+	suite.mockOutput.EXPECT().Print("whhhaaayy")
+	suite.mockOutput.EXPECT().Print("Luigi")
+	suite.mockOutput.EXPECT().Print("Comment 2")
+	suite.prAction.Print()
+}
+
+func (suite *PRActionTestSuite) TestPrint_prints_file_info_without_path() {
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{FullPath: github.MainThread, FileName: github.MainThread},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		File: git.File{FullPath: "README.md:8", Path: "/", Line: 28, LineContents: "whhhaaayy"},
+	}}
+
+	suite.prAction.LastFullPath = "README.md:8"
+	suite.prAction.Index = 0
+	suite.mockOutput.EXPECT().Print(github.MainThread)
+	suite.mockOutput.EXPECT().Print("Mario")
+	suite.mockOutput.EXPECT().Print("Comment 1")
 	suite.prAction.Print()
 }
 
