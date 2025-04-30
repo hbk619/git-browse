@@ -93,9 +93,9 @@ func (suite *PRActionTestSuite) TestInit_new_comments_since_last_view() {
 	suite.NoError(err)
 }
 
-func (suite *PRActionTestSuite) TestInit_verbose_prints_state_and_gets_commit_comments() {
+func (suite *PRActionTestSuite) TestInit_verbose_prints_state() {
 	suite.mockHistory.EXPECT().Load().Return(history.History{Prs: map[int]history.PR{}}, nil)
-	suite.mockHistory.EXPECT().Save(history.History{Prs: map[int]history.PR{2: {CommentCount: 4}}}).Return(nil)
+	suite.mockHistory.EXPECT().Save(history.History{Prs: map[int]history.PR{2: {CommentCount: 2}}}).Return(nil)
 	repo := &git.Repo{
 		Owner:    "Bowser",
 		Name:     "castle",
@@ -103,7 +103,8 @@ func (suite *PRActionTestSuite) TestInit_verbose_prints_state_and_gets_commit_co
 	}
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
 	suite.mockPrClient.EXPECT().GetPRDetails(repo, true).Return(&git.PR{
-		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}}, {Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
+		Comments: []git.Comment{{Body: "Comment 1", Author: git.Author{Login: "Mario"}},
+			{Body: "Comment 2", Author: git.Author{Login: "Peach"}}},
 		State: git.State{
 			MergeStatus:    "mergable",
 			ConflictStatus: "no conflicts",
@@ -117,10 +118,6 @@ func (suite *PRActionTestSuite) TestInit_verbose_prints_state_and_gets_commit_co
 			}},
 		},
 		Title: "A spiffing PR",
-	}, nil)
-	suite.mockPrClient.EXPECT().GetCommitComments(repo.Owner, repo.Name, 2).Return([]git.Comment{
-		{Body: "Comment 3", Author: git.Author{Login: "Mario"}},
-		{Body: "Comment 4", Author: git.Author{Login: "Toad"}},
 	}, nil)
 
 	suite.mockOutput.EXPECT().Print("mergable")
@@ -175,26 +172,6 @@ func (suite *PRActionTestSuite) TestInit_err_getting_comments() {
 	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(nil, expectedErr)
 
 	err := suite.prAction.Init(2, false)
-	suite.ErrorIs(err, expectedErr)
-}
-
-func (suite *PRActionTestSuite) TestInit_err_getting_commit_comments() {
-	repo := &git.Repo{
-		Owner:    "Bowser",
-		Name:     "castle",
-		PRNumber: 2,
-	}
-	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
-	expectedErr := errors.New("failed to get commit comments")
-	suite.mockPrClient.EXPECT().GetPRDetails(repo, true).Return(&git.PR{
-		Comments: []git.Comment{},
-		State:    git.State{},
-		Title:    "A spiffing PR",
-	}, nil)
-
-	suite.mockPrClient.EXPECT().GetCommitComments(repo.Owner, repo.Name, 2).Return(nil, expectedErr)
-
-	err := suite.prAction.Init(2, true)
 	suite.ErrorIs(err, expectedErr)
 }
 

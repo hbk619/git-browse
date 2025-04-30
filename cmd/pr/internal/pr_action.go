@@ -54,14 +54,6 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	pr.State = prDetails.State
 
 	if verbose {
-		commitComments, err := pr.client.GetCommitComments(pr.Repo.Owner, pr.Repo.Name, prNumber)
-		if err != nil {
-			return err
-		}
-		pr.Results = append(pr.Results, commitComments...)
-	}
-
-	if verbose {
 		pr.PrintState()
 	}
 
