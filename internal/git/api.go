@@ -128,17 +128,4 @@ type (
 			Repository Repository
 		}
 	}
-
-	PRDetails struct {
-		Title            string
-		Comments         []Comment
-		ReviewsComments  []Comment
-		Body             string
-		Author           Author
-		CreatedAt        time.Time
-		Mergeable        string
-		MergeStateStatus string
-		State            State
-		CommitComments   []Comment
-	}
 )

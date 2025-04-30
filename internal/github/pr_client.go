@@ -59,25 +59,34 @@ var mergeStates = map[string]string{
 }
 
 func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
-	response, err := gh.getMainPrDetails(repo, verbose)
+	variables := map[string]interface{}{
+		"PullRequestId": repo.PRNumber,
+		"Owner":         repo.Owner,
+		"RepoName":      repo.Name,
+	}
+	data, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(verbose), variables)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get pr details: %w", err)
 	}
 
-	commentList := gh.createComments(response)
-
-	commentList = append(commentList, response.ReviewsComments...)
-	if verbose {
-		commentList = append(commentList, response.CommitComments...)
+	var graphQLData git.GitHubData
+	err = json.Unmarshal(data, &graphQLData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read pr details: %w", err)
 	}
+
+	prDetails := graphQLData.Data.Repository.PullRequest
+
+	commentList := gh.createComments(&prDetails, verbose)
+
 	return &git.PR{
 		Comments: commentList,
-		State:    response.State,
-		Title:    response.Title,
+		State:    gh.createState(verbose, prDetails),
+		Title:    prDetails.Title,
 	}, nil
 }
 
-func (gh *PRClient) createComments(response *git.PRDetails) []git.Comment {
+func (gh *PRClient) createComments(response *git.PullRequest, verbose bool) []git.Comment {
 	var commentList []git.Comment
 
 	if response.Body != "" {
@@ -92,7 +101,16 @@ func (gh *PRClient) createComments(response *git.PRDetails) []git.Comment {
 		})
 	}
 
-	for _, comment := range response.Comments {
+	for _, comment := range response.Comments.Nodes {
+		if comment.Body != "" {
+			comment.File = git.File{
+				FullPath: MainThread,
+				FileName: MainThread,
+			}
+			commentList = append(commentList, comment)
+		}
+	}
+	for _, comment := range response.Reviews.Nodes {
 		if comment.Body != "" {
 			comment.File = git.File{
 				FullPath: MainThread,
@@ -102,6 +120,13 @@ func (gh *PRClient) createComments(response *git.PRDetails) []git.Comment {
 		}
 	}
 	gh.sortCommentsInPlace(commentList)
+	reviewComments := gh.getThreadComments(response)
+	commentList = append(commentList, reviewComments...)
+
+	if verbose {
+		commitComments := gh.getCommitDetails(&response.Commits)
+		commentList = append(commentList, commitComments...)
+	}
 	return commentList
 }
 
@@ -111,23 +136,7 @@ func (gh *PRClient) sortCommentsInPlace(commentList []git.Comment) {
 	})
 }
 
-func (gh *PRClient) getMainPrDetails(repo *git.Repo, verbose bool) (*git.PRDetails, error) {
-	variables := map[string]interface{}{
-		"PullRequestId": repo.PRNumber,
-		"Owner":         repo.Owner,
-		"RepoName":      repo.Name,
-	}
-	data, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(verbose), variables)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get pr details: %w", err)
-	}
-	var graphQLData git.GitHubData
-	err = json.Unmarshal(data, &graphQLData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read pr details: %w", err)
-	}
-	prDetails := graphQLData.Data.Repository.PullRequest
-
+func (gh *PRClient) createState(verbose bool, prDetails git.PullRequest) git.State {
 	state := git.State{}
 	if verbose {
 		reviewStatus := gh.getReviewStatuses(&prDetails.Reviews)
@@ -138,19 +147,7 @@ func (gh *PRClient) getMainPrDetails(repo *git.Repo, verbose bool) (*git.PRDetai
 			Reviews:        reviewStatus,
 		}
 	}
-
-	return &git.PRDetails{
-		Title:            prDetails.Title,
-		Comments:         append(prDetails.Comments.Nodes, prDetails.Reviews.Nodes...),
-		ReviewsComments:  gh.getThreadComments(graphQLData),
-		Body:             prDetails.Body,
-		Author:           prDetails.Author,
-		CreatedAt:        prDetails.CreatedAt,
-		State:            state,
-		Mergeable:        prDetails.Mergeable,
-		MergeStateStatus: prDetails.MergeStateStatus,
-		CommitComments:   gh.getCommitDetails(&prDetails.Commits),
-	}, nil
+	return state
 }
 
 func (gh *PRClient) getCommitDetails(commits *git.Commits) []git.Comment {
@@ -188,9 +185,9 @@ func (gh *PRClient) getReviewStatuses(response *git.Reviews) map[string][]string
 	return reviewStatus
 }
 
-func (gh *PRClient) getThreadComments(graphQLData git.GitHubData) []git.Comment {
+func (gh *PRClient) getThreadComments(graphQLData *git.PullRequest) []git.Comment {
 	var comments []git.Comment
-	threads := graphQLData.Data.Repository.PullRequest.ReviewThreads.Nodes
+	threads := graphQLData.ReviewThreads.Nodes
 	for _, thread := range threads {
 		var threadComments []git.Comment
 		for _, comment := range thread.Comments.Nodes {
