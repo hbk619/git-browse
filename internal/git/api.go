@@ -34,6 +34,7 @@ type (
 		Comments []Comment
 		State    State
 		Title    string
+		Id       string
 	}
 
 	Status struct {
@@ -121,6 +122,7 @@ type (
 		Comments          Comments
 		Reviews           Reviews
 		Commits           Commits
+		Id                string
 	}
 
 	GitHubData struct {

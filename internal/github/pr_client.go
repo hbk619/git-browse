@@ -20,6 +20,7 @@ type PullRequestClient interface {
 	GetRepoDetails() (*git.Repo, error)
 	Reply(repo *git.Repo, contents string, comment *git.Comment) error
 	Resolve(comment *git.Comment) error
+	Reply(repo *git.Repo, contents string, comment *git.Comment, prId string) error
 }
 
 type GetReviewCommentsQuery struct {
@@ -83,6 +84,7 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 		Comments: commentList,
 		State:    gh.createState(verbose, prDetails),
 		Title:    prDetails.Title,
+		Id:       prDetails.Id,
 	}, nil
 }
 
@@ -234,18 +236,22 @@ func (gh *PRClient) GetRepoDetails() (*git.Repo, error) {
 	}, nil
 }
 
-func (gh *PRClient) Reply(repo *git.Repo, contents string, comment *git.Comment) error {
-	if comment.Thread.ID == "" {
-		command := fmt.Sprintf(`gh pr comment %d -b "%s"`, repo.PRNumber, contents)
-		_, err := gh.commandLineClient.Run(command)
-		return err
-
-	}
+func (gh *PRClient) Reply(repo *git.Repo, contents string, comment *git.Comment, prId string) error {
+	query := graphql.AddThreadCommentMutation
 	variables := map[string]interface{}{
 		"threadId": comment.Thread.ID,
 		"body":     contents,
 	}
-	_, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.AddCommentMutation, variables)
+
+	if comment.Thread.ID == "" {
+		query = graphql.AddPRCommentMutation
+		variables = map[string]interface{}{
+			"body":          contents,
+			"pullRequestId": prId,
+		}
+	}
+
+	_, err := gh.apiClient.LoadGitHubGraphQLJSON(query, variables, repo)
 	return err
 }
 

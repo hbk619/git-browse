@@ -329,7 +329,7 @@ func (suite *PRActionTestSuite) TestReply() {
 	}
 	suite.prAction.Repo = repo
 	suite.prAction.Results = comments
-	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[0]).Return(nil)
+	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[0], suite.prAction.Id).Return(nil)
 	suite.mockOutput.EXPECT().Print("Posted comment")
 	suite.prAction.Reply("ta")
 }
@@ -364,7 +364,7 @@ func (suite *PRActionTestSuite) TestReply_middle_comment() {
 	suite.prAction.Repo = repo
 	suite.prAction.Results = comments
 	suite.prAction.Index = 1
-	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1]).Return(nil)
+	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1], suite.prAction.Id).Return(nil)
 	suite.mockOutput.EXPECT().Print("Posted comment")
 	suite.prAction.Reply("ta")
 }
@@ -399,7 +399,7 @@ func (suite *PRActionTestSuite) TestReply_print_error() {
 	suite.prAction.Repo = repo
 	suite.prAction.Results = comments
 	suite.prAction.Index = 1
-	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1]).Return(errors.New("some error"))
+	suite.mockPrClient.EXPECT().Reply(repo, "ta", &comments[1], suite.prAction.Id).Return(errors.New("some error"))
 	suite.mockOutput.EXPECT().Print("Warning failed to comment: some error")
 	suite.prAction.Reply("ta")
 }

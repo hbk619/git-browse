@@ -41,6 +41,7 @@ query PullRequestComments($PullRequestId: Int!, $Owner: String!,$RepoName: Strin
   repository(owner: $Owner, name:$RepoName) {
     pullRequest(number: $PullRequestId) {
 		%s
+		id
       reviews(first: 100) {
 			pageInfo {hasNextPage}
 			nodes {

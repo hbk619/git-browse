@@ -14,6 +14,7 @@ import (
 )
 
 type PRAction struct {
+	Id                  string
 	Repo                *git.Repo
 	Results             []git.Comment
 	PrintedPathLastTime bool
@@ -53,7 +54,7 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	}
 	pr.Results = prDetails.Comments
 	pr.State = prDetails.State
-
+	pr.Id = prDetails.Id
 	if verbose {
 		pr.PrintState()
 	}
@@ -92,7 +93,7 @@ func (pr *PRAction) updateHistory(prNumber int, commentCount int) {
 }
 
 func (pr *PRAction) Reply(contents string) {
-	err := pr.client.Reply(pr.Repo, contents, &pr.Results[pr.Interactive.Index])
+	err := pr.client.Reply(pr.Repo, contents, &pr.Results[pr.Interactive.Index], pr.Id)
 	if err != nil {
 		pr.output.Print(fmt.Sprintf("Warning failed to comment: %s", err.Error()))
 	} else {

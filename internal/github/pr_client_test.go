@@ -678,15 +678,15 @@ func (suite *PRServiceTestSuite) TestGetRepoDetails_InvalidRemoteURL() {
 }
 
 func (suite *PRServiceTestSuite) TestReply_main_thread() {
-	suite.mockCommandLine.EXPECT().
-		Run(`gh pr comment 2 -b "Thank you"`).
-		Return("", nil)
-	repo := &git.Repo{
-		Owner:    "mario",
-		Name:     "kart",
-		PRNumber: 2,
+	variables := map[string]interface{}{
+		"pullRequestId": "asdsa2",
+		"body":          "Thank you",
 	}
-	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"})
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.AddPRCommentMutation, gomock.Eq(variables), suite.repo).
+		Return([]byte{}, nil)
+
+	err := suite.prService.Reply(suite.repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
 	suite.NoError(err)
 }
 
@@ -696,7 +696,7 @@ func (suite *PRServiceTestSuite) TestReply_thread() {
 		"body":     "Thank you",
 	}
 	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.AddCommentMutation, gomock.Eq(variables)).
+		LoadGitHubGraphQLJSON(graphql.AddThreadCommentMutation, gomock.Eq(variables), suite.repo).
 		Return([]byte{}, nil)
 	repo := &git.Repo{
 		Owner:    "mario",
@@ -704,20 +704,22 @@ func (suite *PRServiceTestSuite) TestReply_thread() {
 		PRNumber: 2,
 	}
 	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
+
+	err := suite.prService.Reply(suite.repo, "Thank you", &git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"}, "")
 	suite.NoError(err)
 }
 
 func (suite *PRServiceTestSuite) TestReply_has_error() {
 	expected := errors.New("error")
-	suite.mockCommandLine.EXPECT().
-		Run(`gh pr comment 2 -b "Thank you"`).
-		Return("", expected)
-	repo := &git.Repo{
-		Owner:    "mario",
-		Name:     "kart",
-		PRNumber: 2,
+	variables := map[string]interface{}{
+		"pullRequestId": "asdsa2",
+		"body":          "Thank you",
 	}
-	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"})
+	suite.mockApi.EXPECT().
+		LoadGitHubGraphQLJSON(graphql.AddPRCommentMutation, gomock.Eq(variables), suite.repo).
+		Return([]byte{}, expected)
+
+	err := suite.prService.Reply(suite.repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
 	suite.ErrorIs(expected, err)
 }
 
