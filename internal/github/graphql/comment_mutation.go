@@ -11,6 +11,7 @@ var AddPRCommentMutation = `mutation AddComment($pullRequestId: ID!, $body: Stri
   addPullRequestReview(input: {
     body: $body
     pullRequestId: $pullRequestId
+	state: COMMENT
   }) {
     clientMutationId
   }
