@@ -9,8 +9,8 @@ var AddThreadCommentMutation = `mutation AddComment($threadId: ID!, $body: Strin
 
 var AddPRCommentMutation = `mutation AddComment($pullRequestId: ID!, $body: String!) {
   addPullRequestReview(input: {
-    body:$body
-    pullRequestId:$pullRequestId
+    body: $body
+    pullRequestId: $pullRequestId
   }) {
     clientMutationId
   }
