@@ -1,8 +1,18 @@
 package graphql
 
-var AddCommentMutation = `mutation AddComment($threadId: ID!, $body: String!) {
+var AddThreadCommentMutation = `mutation AddComment($threadId: ID!, $body: String!) {
   addPullRequestReviewThreadReply(input: {
     body: $body,
     pullRequestReviewThreadId: $threadId
   }) {clientMutationId}
+}`
+
+var AddPRCommentMutation = `mutation AddComment($pullRequestId: ID!, $body: String!) {
+  addPullRequestReview(input: {
+    body: $body
+    pullRequestId: $pullRequestId
+	state: COMMENT
+  }) {
+    clientMutationId
+  }
 }`

@@ -1,15 +1,15 @@
 package github
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/cli/go-gh/v2/pkg/repository"
+	githubql "github.com/cli/shurcooL-graphql"
 	"github.com/hbk619/git-browse/internal/git"
 	"github.com/hbk619/git-browse/internal/github/graphql"
 	"github.com/hbk619/git-browse/internal/requests"
-	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -17,9 +17,9 @@ import (
 
 type PullRequestClient interface {
 	GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error)
-	GetRepoDetails() (*git.Repo, error)
-	Reply(repo *git.Repo, contents string, comment *git.Comment) error
+	GetRepoDetails() (repository.Repository, error)
 	Resolve(comment *git.Comment) error
+	Reply(contents string, comment *git.Comment, prId string) error
 }
 
 type GetReviewCommentsQuery struct {
@@ -29,14 +29,12 @@ type GetReviewCommentsQuery struct {
 }
 
 type PRClient struct {
-	apiClient         Api
-	commandLineClient requests.CommandLine
+	graphQLClient requests.GraphQLClient
 }
 
-func NewPRClient(apiClient Api, line requests.CommandLine) *PRClient {
+func NewPRClient(apiClient requests.GraphQLClient) *PRClient {
 	return &PRClient{
-		apiClient:         apiClient,
-		commandLineClient: line,
+		graphQLClient: apiClient,
 	}
 }
 
@@ -58,31 +56,33 @@ var mergeStates = map[string]string{
 	"UNKNOWN":     "The mergeability of the pull request is still being calculated",
 }
 
+type GraphQLResponse struct {
+	Data   interface{}
+	Errors []api.GraphQLErrorItem
+}
+
 func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
 	variables := map[string]interface{}{
-		"PullRequestId": repo.PRNumber,
-		"Owner":         repo.Owner,
-		"RepoName":      repo.Name,
+		"PullRequestId": githubql.Int(repo.PRNumber),
+		"Owner":         githubql.String(repo.Owner),
+		"RepoName":      githubql.String(repo.Name),
 	}
-	data, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(verbose), variables)
+	var response git.GitHubData
+	err := gh.graphQLClient.Do(graphql.PRDetailsQuery(verbose), variables, &response)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pr details: %w", err)
+		return nil, err
 	}
 
-	var graphQLData git.GitHubData
-	err = json.Unmarshal(data, &graphQLData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read pr details: %w", err)
-	}
-
-	prDetails := graphQLData.Data.Repository.PullRequest
+	prDetails := response.Repository.PullRequest
 
 	commentList := gh.createComments(&prDetails, verbose)
 
 	return &git.PR{
 		Comments: commentList,
-		State:    gh.createState(verbose, prDetails),
+		State:    gh.createState(verbose, &prDetails),
 		Title:    prDetails.Title,
+		Id:       prDetails.Id,
 	}, nil
 }
 
@@ -136,7 +136,7 @@ func (gh *PRClient) sortCommentsInPlace(commentList []git.Comment) {
 	})
 }
 
-func (gh *PRClient) createState(verbose bool, prDetails git.PullRequest) git.State {
+func (gh *PRClient) createState(verbose bool, prDetails *git.PullRequest) git.State {
 	state := git.State{}
 	if verbose {
 		reviewStatus := gh.getReviewStatuses(&prDetails.Reviews)
@@ -211,42 +211,26 @@ func (gh *PRClient) getThreadComments(graphQLData *git.PullRequest) []git.Commen
 	return comments
 }
 
-var gitRepoRegex = regexp.MustCompile(`(?:git@|https://)[^:/]+[:/](?P<owner>[^/]+)/(?P<repo>.*)\.git`)
-
-func (gh *PRClient) GetRepoDetails() (*git.Repo, error) {
-	remote, err := gh.commandLineClient.Run("git config --get remote.origin.url")
-	if err != nil || remote == "" {
-		wd, _ := os.Getwd()
-		return nil, fmt.Errorf(
-			"not in a git repo, current directory: %s",
-			wd,
-		)
-	}
-
-	match := gitRepoRegex.FindStringSubmatch(remote)
-	if match == nil {
-		return nil, errors.New("could not parse git remote URL")
-	}
-
-	return &git.Repo{
-		Owner: match[1],
-		Name:  match[2],
-	}, nil
+func (gh *PRClient) GetRepoDetails() (repository.Repository, error) {
+	return repository.Current()
 }
 
-func (gh *PRClient) Reply(repo *git.Repo, contents string, comment *git.Comment) error {
-	if comment.Thread.ID == "" {
-		command := fmt.Sprintf(`gh pr comment %d -b "%s"`, repo.PRNumber, contents)
-		_, err := gh.commandLineClient.Run(command)
-		return err
-
-	}
+func (gh *PRClient) Reply(contents string, comment *git.Comment, prId string) error {
+	query := graphql.AddThreadCommentMutation
 	variables := map[string]interface{}{
 		"threadId": comment.Thread.ID,
 		"body":     contents,
 	}
-	_, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.AddCommentMutation, variables)
-	return err
+
+	if comment.Thread.ID == "" {
+		query = graphql.AddPRCommentMutation
+		variables = map[string]interface{}{
+			"body":          contents,
+			"pullRequestId": prId,
+		}
+	}
+
+	return gh.graphQLClient.Do(query, variables, nil)
 }
 
 func (gh *PRClient) Resolve(comment *git.Comment) error {
@@ -254,8 +238,9 @@ func (gh *PRClient) Resolve(comment *git.Comment) error {
 		variables := map[string]interface{}{
 			"threadId": comment.Thread.ID,
 		}
-		_, err := gh.apiClient.LoadGitHubGraphQLJSON(graphql.ResolveThreadMutation, variables)
-		return err
+
+		var results GraphQLResponse
+		return gh.graphQLClient.Do(graphql.ResolveThreadMutation, variables, results)
 	}
 	return errors.New("cannot resolve a main or commit comment")
 }

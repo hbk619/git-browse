@@ -1,6 +1,8 @@
 package graphql
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func PRDetailsQuery(verbose bool) string {
 	verboseFields := ""
@@ -41,6 +43,7 @@ query PullRequestComments($PullRequestId: Int!, $Owner: String!,$RepoName: Strin
   repository(owner: $Owner, name:$RepoName) {
     pullRequest(number: $PullRequestId) {
 		%s
+		id
       reviews(first: 100) {
 			pageInfo {hasNextPage}
 			nodes {
