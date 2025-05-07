@@ -93,7 +93,7 @@ func (pr *PRAction) updateHistory(prNumber int, commentCount int) {
 }
 
 func (pr *PRAction) Reply(contents string) {
-	err := pr.client.Reply(pr.Repo, contents, &pr.Results[pr.Interactive.Index], pr.Id)
+	err := pr.client.Reply(contents, &pr.Results[pr.Interactive.Index], pr.Id)
 	if err != nil {
 		pr.output.Print(fmt.Sprintf("Warning failed to comment: %s", err.Error()))
 	} else {

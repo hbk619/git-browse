@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/hbk619/git-browse/cmd/pr/internal"
 	"github.com/hbk619/git-browse/internal/filesystem"
 	"github.com/hbk619/git-browse/internal/github"
 	"github.com/hbk619/git-browse/internal/history"
-	"github.com/hbk619/git-browse/internal/requests"
 	"os"
 	"strconv"
 
@@ -29,10 +29,9 @@ var rootCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
-		commandLine := requests.NewBash()
-		authToken, err := commandLine.Run("gh auth token")
-		httpClient := requests.NewAuthorisedHTTPClient(&requests.AuthorisedHTTPClientOptions{AuthToken: authToken})
-		pr := internal.NewPRAction(github.NewPRClient(github.NewGHApi(httpClient, commandLine), commandLine), historyService, filesystem.NewStdOut())
+		graphQlClient, err := api.DefaultGraphQLClient()
+		prClient := github.NewPRClient(graphQlClient)
+		pr := internal.NewPRAction(prClient, historyService, filesystem.NewStdOut())
 		verbose, err := cmd.Flags().GetBool("verbose")
 		if err != nil {
 			fmt.Println(err)

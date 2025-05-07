@@ -1,11 +1,12 @@
 package github
 
 import (
+	"encoding/json"
 	"errors"
+	githubql "github.com/cli/shurcooL-graphql"
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/git-browse/internal/git"
 	"github.com/hbk619/git-browse/internal/github/graphql"
-	mock_github "github.com/hbk619/git-browse/internal/github/mocks"
 	mock_requests "github.com/hbk619/git-browse/internal/requests/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -16,25 +17,22 @@ import (
 
 type PRServiceTestSuite struct {
 	suite.Suite
-	mockApi         *mock_github.MockApi
-	ctrl            *gomock.Controller
-	repo            *git.Repo
-	prService       PRClient
-	mockCommandLine *mock_requests.MockCommandLine
+	mockGraphQL *mock_requests.MockGraphQLClient
+	ctrl        *gomock.Controller
+	repo        *git.Repo
+	prService   PRClient
 }
 
 func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 	suite.ctrl = gomock.NewController(suite.T())
-	suite.mockApi = mock_github.NewMockApi(suite.ctrl)
+	suite.mockGraphQL = mock_requests.NewMockGraphQLClient(suite.ctrl)
 	suite.repo = &git.Repo{
 		Owner:    "luigi",
 		Name:     "castle",
 		PRNumber: 123,
 	}
-	suite.mockCommandLine = mock_requests.NewMockCommandLine(suite.ctrl)
 	suite.prService = PRClient{
-		apiClient:         suite.mockApi,
-		commandLineClient: suite.mockCommandLine,
+		graphQLClient: suite.mockGraphQL,
 	}
 }
 
@@ -43,32 +41,6 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_no_comments() {
   "data": {
     "repository": {
       "pullRequest": {
-        "commits": {
-          "nodes": [
-            {
-              "commit": {
-                "oid": "712000baad1a5b641d0308d45be98444b521333",
-                "comments": {
-                  "nodes": []
-                }
-              }
-            },
-            {
-              "commit": {
-                "oid": "b4dsd44214789e2ae1f9c83fb6cfeaea24fr424",
-                "comments": null
-              }
-            },
-            {
-              "commit": {
-                "oid": "9c637cc6b5d6099b443980daf91248c354321ss221",
-                "comments": {
-                  "nodes": []
-                }
-              }
-            }
-          ]
-        },
         "reviews": null,
         "body": "",
         "author": {
@@ -90,13 +62,19 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_no_comments() {
 	}
 
 	variables := map[string]interface{}{
-		"PullRequestId": suite.repo.PRNumber,
-		"Owner":         suite.repo.Owner,
-		"RepoName":      suite.repo.Name,
+		"PullRequestId": githubql.Int(suite.repo.PRNumber),
+		"Owner":         githubql.String(suite.repo.Owner),
+		"RepoName":      githubql.String(suite.repo.Name),
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(false), variables).
-		Return([]byte(prDetails), nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.PRDetailsQuery(false), variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+
+			err := json.Unmarshal([]byte(prDetails), &gr)
+			suite.NoError(err)
+			return nil
+		})
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
@@ -339,29 +317,36 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_with_verbose() {
 		Title: "Test pr",
 	}
 	variables := map[string]interface{}{
-		"PullRequestId": suite.repo.PRNumber,
-		"Owner":         suite.repo.Owner,
-		"RepoName":      suite.repo.Name,
+		"PullRequestId": githubql.Int(suite.repo.PRNumber),
+		"Owner":         githubql.String(suite.repo.Owner),
+		"RepoName":      githubql.String(suite.repo.Name),
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(true), variables).
-		Return([]byte(prDetails), nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.PRDetailsQuery(true), variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+			err := json.Unmarshal([]byte(prDetails), &gr)
+			suite.NoError(err)
+			return nil
+		})
 
 	details, err := suite.prService.GetPRDetails(suite.repo, true)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
 }
 
-func (suite *PRServiceTestSuite) TestPRService_getPrDetails_pr_not_found() {
+func (suite *PRServiceTestSuite) TestPRService_getPrDetails_error() {
 	variables := map[string]interface{}{
-		"PullRequestId": suite.repo.PRNumber,
-		"Owner":         suite.repo.Owner,
-		"RepoName":      suite.repo.Name,
+		"PullRequestId": githubql.Int(suite.repo.PRNumber),
+		"Owner":         githubql.String(suite.repo.Owner),
+		"RepoName":      githubql.String(suite.repo.Name),
 	}
 	expected := errors.New("failed to find pr")
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(false), variables).
-		Return(nil, expected)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.PRDetailsQuery(false), variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			return expected
+		})
 
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.ErrorContains(suite.T(), err, expected.Error())
@@ -603,78 +588,22 @@ func (suite *PRServiceTestSuite) TestPRService_getPrDetails_comments_with_thread
 		Title: "Test pr",
 	}
 	variables := map[string]interface{}{
-		"PullRequestId": suite.repo.PRNumber,
-		"Owner":         suite.repo.Owner,
-		"RepoName":      suite.repo.Name,
+		"PullRequestId": githubql.Int(suite.repo.PRNumber),
+		"Owner":         githubql.String(suite.repo.Owner),
+		"RepoName":      githubql.String(suite.repo.Name),
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.PRDetailsQuery(false), variables).
-		Return([]byte(prDetails), nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.PRDetailsQuery(false), variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+			err := json.Unmarshal([]byte(prDetails), &gr)
+			suite.NoError(err)
+			return nil
+		})
 
 	details, err := suite.prService.GetPRDetails(suite.repo, false)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expected, details)
-}
-
-func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidSSHURL() {
-	suite.mockCommandLine.EXPECT().
-		Run("git config --get remote.origin.url").
-		Return("git@github.com:peach/repo-2.git", nil)
-
-	repo, err := suite.prService.GetRepoDetails()
-
-	suite.NoError(err)
-	suite.Equal(&git.Repo{
-		Owner: "peach",
-		Name:  "repo-2",
-	}, repo)
-}
-
-func (suite *PRServiceTestSuite) TestGetRepoDetails_ValidHTTPSURL() {
-	suite.mockCommandLine.EXPECT().
-		Run("git config --get remote.origin.url").
-		Return("https://git.com/mario/castle.git", nil)
-
-	repo, err := suite.prService.GetRepoDetails()
-
-	suite.NoError(err)
-	suite.Equal(&git.Repo{
-		Owner: "mario",
-		Name:  "castle",
-	}, repo)
-}
-
-func (suite *PRServiceTestSuite) TestGetRepoDetails_CommandError() {
-	suite.mockCommandLine.EXPECT().
-		Run("git config --get remote.origin.url").
-		Return("", errors.New("command failed"))
-
-	repo, err := suite.prService.GetRepoDetails()
-
-	suite.ErrorContains(err, "not in a git repo, current directory:")
-	suite.Nil(repo)
-}
-
-func (suite *PRServiceTestSuite) TestGetRepoDetails_EmptyRemoteURL() {
-	suite.mockCommandLine.EXPECT().
-		Run("git config --get remote.origin.url").
-		Return("", nil)
-
-	repo, err := suite.prService.GetRepoDetails()
-
-	suite.ErrorContains(err, "not in a git repo, current directory:")
-	suite.Nil(repo)
-}
-
-func (suite *PRServiceTestSuite) TestGetRepoDetails_InvalidRemoteURL() {
-	suite.mockCommandLine.EXPECT().
-		Run("git config --get remote.origin.url").
-		Return("invalid-url", nil)
-
-	repo, err := suite.prService.GetRepoDetails()
-
-	suite.ErrorContains(err, "could not parse git remote URL")
-	suite.Nil(repo)
 }
 
 func (suite *PRServiceTestSuite) TestReply_main_thread() {
@@ -682,11 +611,13 @@ func (suite *PRServiceTestSuite) TestReply_main_thread() {
 		"pullRequestId": "asdsa2",
 		"body":          "Thank you",
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.AddPRCommentMutation, gomock.Eq(variables), suite.repo).
-		Return([]byte{}, nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.AddPRCommentMutation, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			return nil
+		})
 
-	err := suite.prService.Reply(suite.repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
+	err := suite.prService.Reply("Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
 	suite.NoError(err)
 }
 
@@ -695,17 +626,13 @@ func (suite *PRServiceTestSuite) TestReply_thread() {
 		"threadId": "P2323123dm",
 		"body":     "Thank you",
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.AddThreadCommentMutation, gomock.Eq(variables), suite.repo).
-		Return([]byte{}, nil)
-	repo := &git.Repo{
-		Owner:    "mario",
-		Name:     "kart",
-		PRNumber: 2,
-	}
-	err := suite.prService.Reply(repo, "Thank you", &git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.AddThreadCommentMutation, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			return nil
+		})
 
-	err := suite.prService.Reply(suite.repo, "Thank you", &git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"}, "")
+	err := suite.prService.Reply("Thank you", &git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"}, "")
 	suite.NoError(err)
 }
 
@@ -715,11 +642,13 @@ func (suite *PRServiceTestSuite) TestReply_has_error() {
 		"pullRequestId": "asdsa2",
 		"body":          "Thank you",
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.AddPRCommentMutation, gomock.Eq(variables), suite.repo).
-		Return([]byte{}, expected)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.AddPRCommentMutation, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			return expected
+		})
 
-	err := suite.prService.Reply(suite.repo, "Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
+	err := suite.prService.Reply("Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
 	suite.ErrorIs(expected, err)
 }
 
@@ -732,9 +661,11 @@ func (suite *PRServiceTestSuite) TestResolve_thread() {
 	variables := map[string]interface{}{
 		"threadId": "P2323123dm",
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.ResolveThreadMutation, gomock.Eq(variables)).
-		Return([]byte{}, nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.ResolveThreadMutation, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			return nil
+		})
 	err := suite.prService.Resolve(&git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
 	suite.NoError(err)
 }
@@ -744,9 +675,11 @@ func (suite *PRServiceTestSuite) TestResolve_has_error() {
 	variables := map[string]interface{}{
 		"threadId": "P2323123dm",
 	}
-	suite.mockApi.EXPECT().
-		LoadGitHubGraphQLJSON(graphql.ResolveThreadMutation, gomock.Eq(variables)).
-		Return([]byte{}, expected)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.ResolveThreadMutation, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			return expected
+		})
 	err := suite.prService.Resolve(&git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
 	suite.ErrorIs(expected, err)
 }

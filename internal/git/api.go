@@ -126,8 +126,6 @@ type (
 	}
 
 	GitHubData struct {
-		Data struct {
-			Repository Repository
-		}
+		Repository Repository
 	}
 )

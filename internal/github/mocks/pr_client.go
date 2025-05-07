@@ -7,6 +7,7 @@ package mock_github
 import (
 	reflect "reflect"
 
+	repository "github.com/cli/go-gh/v2/pkg/repository"
 	gomock "github.com/golang/mock/gomock"
 	git "github.com/hbk619/git-browse/internal/git"
 )
@@ -50,10 +51,10 @@ func (mr *MockPullRequestClientMockRecorder) GetPRDetails(repo, verbose interfac
 }
 
 // GetRepoDetails mocks base method.
-func (m *MockPullRequestClient) GetRepoDetails() (*git.Repo, error) {
+func (m *MockPullRequestClient) GetRepoDetails() (repository.Repository, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRepoDetails")
-	ret0, _ := ret[0].(*git.Repo)
+	ret0, _ := ret[0].(repository.Repository)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -65,17 +66,17 @@ func (mr *MockPullRequestClientMockRecorder) GetRepoDetails() *gomock.Call {
 }
 
 // Reply mocks base method.
-func (m *MockPullRequestClient) Reply(repo *git.Repo, contents string, comment *git.Comment, prId string) error {
+func (m *MockPullRequestClient) Reply(contents string, comment *git.Comment, prId string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reply", repo, contents, comment, prId)
+	ret := m.ctrl.Call(m, "Reply", contents, comment, prId)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Reply indicates an expected call of Reply.
-func (mr *MockPullRequestClientMockRecorder) Reply(repo, contents, comment, prId interface{}) *gomock.Call {
+func (mr *MockPullRequestClientMockRecorder) Reply(contents, comment, prId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reply", reflect.TypeOf((*MockPullRequestClient)(nil).Reply), repo, contents, comment, prId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reply", reflect.TypeOf((*MockPullRequestClient)(nil).Reply), contents, comment, prId)
 }
 
 // Resolve mocks base method.

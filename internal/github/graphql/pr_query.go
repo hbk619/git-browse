@@ -1,6 +1,8 @@
 package graphql
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func PRDetailsQuery(verbose bool) string {
 	verboseFields := ""
