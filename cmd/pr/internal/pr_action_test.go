@@ -46,8 +46,52 @@ func (suite *PRActionTestSuite) TestInit_no_comments() {
 		Title:    "A spiffing PR",
 	}, nil)
 
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.ErrorContains(err, "no comments found")
+}
+
+func (suite *PRActionTestSuite) TestInit_gets_pr_number() {
+	suite.mockHistory.EXPECT().Load().Return(history.History{Prs: make(map[int]history.PR)}, nil)
+	prHistory := history.PR{CommentCount: 0}
+	suite.mockHistory.EXPECT().Save(history.History{Prs: map[int]history.PR{2: prHistory}}).Return(nil)
+	repo := repository.Repository{
+		Owner: "Bowser",
+		Name:  "castle",
+	}
+	suite.mockPrClient.EXPECT().DetectCurrentPR(suite.prAction.Repo).Return(2, nil)
+	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
+	suite.mockPrClient.EXPECT().GetPRDetails(suite.prAction.Repo, false).Return(&git.PR{
+		Comments: []git.Comment{},
+		State:    git.State{},
+		Title:    "A spiffing PR",
+	}, nil)
+
+	err := suite.prAction.Init([]string{}, false)
+	suite.ErrorContains(err, "no comments found")
+}
+
+func (suite *PRActionTestSuite) TestInit_error_when_getting_pr_number() {
+	repo := repository.Repository{
+		Owner: "Bowser",
+		Name:  "castle",
+	}
+	expected := errors.New("mocked error")
+	suite.mockPrClient.EXPECT().DetectCurrentPR(suite.prAction.Repo).Return(0, expected)
+	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
+
+	err := suite.prAction.Init([]string{}, false)
+	suite.ErrorContains(err, "mocked error")
+}
+
+func (suite *PRActionTestSuite) TestInit_invalid_pr_number() {
+	repo := repository.Repository{
+		Owner: "Bowser",
+		Name:  "castle",
+	}
+	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repo, nil)
+
+	err := suite.prAction.Init([]string{"asdasd"}, false)
+	suite.ErrorContains(err, "provide a valid PR number")
 }
 
 func (suite *PRActionTestSuite) TestInit_new_comments_never_viewed_pr() {
@@ -67,7 +111,7 @@ func (suite *PRActionTestSuite) TestInit_new_comments_never_viewed_pr() {
 	suite.mockOutput.EXPECT().Print("New comments ahead!")
 	suite.mockOutput.EXPECT().Print("Mario")
 	suite.mockOutput.EXPECT().Print("Comment 1")
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
 
@@ -88,7 +132,7 @@ func (suite *PRActionTestSuite) TestInit_new_comments_since_last_view() {
 	suite.mockOutput.EXPECT().Print("New comments ahead!")
 	suite.mockOutput.EXPECT().Print("Mario")
 	suite.mockOutput.EXPECT().Print("Comment 1")
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
 
@@ -126,7 +170,7 @@ func (suite *PRActionTestSuite) TestInit_verbose_prints_state() {
 	suite.mockOutput.EXPECT().Print("New comments ahead!")
 	suite.mockOutput.EXPECT().Print("Mario")
 	suite.mockOutput.EXPECT().Print("Comment 1")
-	err := suite.prAction.Init(2, true)
+	err := suite.prAction.Init([]string{"2"}, true)
 	suite.NoError(err)
 }
 
@@ -146,7 +190,7 @@ func (suite *PRActionTestSuite) TestInit_no_new_comments_since_last_view() {
 
 	suite.mockOutput.EXPECT().Print("Mario")
 	suite.mockOutput.EXPECT().Print("Comment 1")
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
 
@@ -154,7 +198,7 @@ func (suite *PRActionTestSuite) TestInit_err_getting_repo() {
 	expectedErr := errors.New("failed to get repo")
 	suite.mockPrClient.EXPECT().GetRepoDetails().Return(repository.Repository{}, expectedErr)
 
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.ErrorIs(err, expectedErr)
 }
 
@@ -172,7 +216,7 @@ func (suite *PRActionTestSuite) TestInit_err_getting_comments() {
 	expectedErr := errors.New("failed to get comments")
 	suite.mockPrClient.EXPECT().GetPRDetails(repo, false).Return(nil, expectedErr)
 
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.ErrorIs(err, expectedErr)
 }
 
@@ -193,7 +237,7 @@ func (suite *PRActionTestSuite) TestInit_err_loading_history() {
 	suite.mockOutput.EXPECT().Print("Warning failed to load comments to history: no permission to read file")
 	suite.mockOutput.EXPECT().Print("Mario")
 	suite.mockOutput.EXPECT().Print("Comment 1")
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
 
@@ -217,7 +261,7 @@ func (suite *PRActionTestSuite) TestInit_err_saving_history() {
 	suite.mockOutput.EXPECT().Print("New comments ahead!")
 	suite.mockOutput.EXPECT().Print("Mario")
 	suite.mockOutput.EXPECT().Print("Comment 1")
-	err := suite.prAction.Init(2, false)
+	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
 

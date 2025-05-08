@@ -97,3 +97,13 @@ query PullRequestComments($PullRequestId: Int!, $Owner: String!,$RepoName: Strin
   }
 }`, verboseFields)
 }
+
+var GetPRForBranch = `query GetPRForBranch($BranchName: String!, $Owner: String!, $RepoName: String!) {
+  repository(owner:$Owner, name:$RepoName) {
+    pullRequests(first: 10, headRefName:$BranchName) {
+      nodes {
+        number
+      }
+    }
+  }
+}`

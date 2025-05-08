@@ -39,14 +39,18 @@ func NewPRAction(client github.PullRequestClient, history history.Storage, outpu
 	}
 }
 
-func (pr *PRAction) Init(prNumber int, verbose bool) error {
+func (pr *PRAction) Init(args []string, verbose bool) error {
 	repoDetails, err := pr.client.GetRepoDetails()
 	if err != nil {
 		return err
 	}
 	pr.Repo.Owner = repoDetails.Owner
 	pr.Repo.Name = repoDetails.Name
-	pr.Repo.PRNumber = prNumber
+
+	pr.Repo.PRNumber, err = pr.getPRNumber(args)
+	if err != nil {
+		return err
+	}
 
 	prDetails, err := pr.client.GetPRDetails(pr.Repo, verbose)
 	if err != nil {
@@ -60,7 +64,7 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	}
 
 	commentCount := len(pr.Results)
-	pr.updateHistory(prNumber, commentCount)
+	pr.updateHistory(pr.Repo.PRNumber, commentCount)
 
 	if commentCount == 0 {
 		return errors.New("no comments found")
@@ -69,6 +73,18 @@ func (pr *PRAction) Init(prNumber int, verbose bool) error {
 	pr.Interactive.MaxIndex = commentCount - 1
 	pr.Print()
 	return nil
+}
+
+func (pr *PRAction) getPRNumber(args []string) (int, error) {
+	if len(args) > 0 {
+		number, err := strconv.Atoi(args[0])
+		if err != nil {
+			return 0, fmt.Errorf("please provide a valid PR number")
+		}
+		return number, nil
+	} else {
+		return pr.client.DetectCurrentPR(pr.Repo)
+	}
 }
 
 func (pr *PRAction) updateHistory(prNumber int, commentCount int) {

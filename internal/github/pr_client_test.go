@@ -7,6 +7,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/git-browse/internal/git"
 	"github.com/hbk619/git-browse/internal/github/graphql"
+	mock_github "github.com/hbk619/git-browse/internal/github/mocks"
 	mock_requests "github.com/hbk619/git-browse/internal/requests/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -17,15 +18,17 @@ import (
 
 type PRServiceTestSuite struct {
 	suite.Suite
-	mockGraphQL *mock_requests.MockGraphQLClient
-	ctrl        *gomock.Controller
-	repo        *git.Repo
-	prService   PRClient
+	mockGraphQL   *mock_requests.MockGraphQLClient
+	mockGitClient *mock_github.MockGitClient
+	ctrl          *gomock.Controller
+	repo          *git.Repo
+	prService     PRClient
 }
 
 func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockGraphQL = mock_requests.NewMockGraphQLClient(suite.ctrl)
+	suite.mockGitClient = mock_github.NewMockGitClient(suite.ctrl)
 	suite.repo = &git.Repo{
 		Owner:    "luigi",
 		Name:     "castle",
@@ -33,6 +36,7 @@ func (suite *PRServiceTestSuite) BeforeTest(string, string) {
 	}
 	suite.prService = PRClient{
 		graphQLClient: suite.mockGraphQL,
+		gitClient:     suite.mockGitClient,
 	}
 }
 
@@ -649,7 +653,7 @@ func (suite *PRServiceTestSuite) TestReply_has_error() {
 		})
 
 	err := suite.prService.Reply("Thank you", &git.Comment{Id: "PDDD_e43oidmdm"}, "asdsa2")
-	suite.ErrorIs(expected, err)
+	suite.ErrorIs(err, expected)
 }
 
 func (suite *PRServiceTestSuite) TestResolve_main_thread() {
@@ -681,7 +685,158 @@ func (suite *PRServiceTestSuite) TestResolve_has_error() {
 			return expected
 		})
 	err := suite.prService.Resolve(&git.Comment{Thread: git.Thread{ID: "P2323123dm"}, Id: "PDDD_e43oidmdm"})
-	suite.ErrorIs(expected, err)
+	suite.ErrorIs(err, expected)
+}
+
+func (suite *PRServiceTestSuite) TestDetectCurrentPR_has_error_getting_branch() {
+	expected := errors.New("error")
+
+	suite.mockGitClient.EXPECT().
+		CurrentBranch(gomock.Any()).
+		Return("", expected)
+	prNumber, err := suite.prService.DetectCurrentPR(&git.Repo{
+		Owner: "mario",
+		Name:  "kart",
+	})
+	suite.ErrorIs(err, expected)
+	suite.Equal(prNumber, 0)
+}
+
+func (suite *PRServiceTestSuite) TestDetectCurrentPR_has_error_getting_prs() {
+	expected := errors.New("error")
+	variables := map[string]interface{}{
+		"BranchName": "branchy",
+		"Owner":      "mario",
+		"RepoName":   "kart",
+	}
+	suite.mockGitClient.EXPECT().
+		CurrentBranch(gomock.Any()).
+		Return("branchy", nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.GetPRForBranch, variables, gomock.Any()).
+		Return(expected)
+	prNumber, err := suite.prService.DetectCurrentPR(&git.Repo{
+		Owner: "mario",
+		Name:  "kart",
+	})
+	suite.ErrorIs(err, expected)
+	suite.Equal(0, prNumber)
+}
+
+func (suite *PRServiceTestSuite) TestDetectCurrentPR_returns_pr_when_one_found() {
+	variables := map[string]interface{}{
+		"BranchName": "branchy",
+		"Owner":      "mario",
+		"RepoName":   "kart",
+	}
+	prDetails := `{
+		"data": {
+			"repository": {
+				"pullRequests": {
+					"nodes": [
+						{
+							"number": 2
+						}
+					]
+				}
+			}
+		}
+	}`
+	suite.mockGitClient.EXPECT().
+		CurrentBranch(gomock.Any()).
+		Return("branchy", nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.GetPRForBranch, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+
+			err := json.Unmarshal([]byte(prDetails), &gr)
+			suite.NoError(err)
+			return nil
+		})
+	prNumber, err := suite.prService.DetectCurrentPR(&git.Repo{
+		Owner: "mario",
+		Name:  "kart",
+	})
+	suite.NoError(err)
+	suite.Equal(2, prNumber)
+}
+
+func (suite *PRServiceTestSuite) TestDetectCurrentPR_returns_pr_error_when_more_than_one_found() {
+	variables := map[string]interface{}{
+		"BranchName": "branchy",
+		"Owner":      "mario",
+		"RepoName":   "kart",
+	}
+	prDetails := `{
+		"data": {
+			"repository": {
+				"pullRequests": {
+					"nodes": [
+						{
+							"number": 2
+						},
+						{
+							"number": 4
+						}
+					]
+				}
+			}
+		}
+	}`
+	suite.mockGitClient.EXPECT().
+		CurrentBranch(gomock.Any()).
+		Return("branchy", nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.GetPRForBranch, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+
+			err := json.Unmarshal([]byte(prDetails), &gr)
+			suite.NoError(err)
+			return nil
+		})
+	prNumber, err := suite.prService.DetectCurrentPR(&git.Repo{
+		Owner: "mario",
+		Name:  "kart",
+	})
+	suite.ErrorContains(err, "too many pull request found for branchy")
+	suite.Equal(0, prNumber)
+}
+
+func (suite *PRServiceTestSuite) TestDetectCurrentPR_returns_pr_error_when_none_found() {
+	variables := map[string]interface{}{
+		"BranchName": "branchy",
+		"Owner":      "mario",
+		"RepoName":   "kart",
+	}
+	prDetails := `{
+		"data": {
+			"repository": {
+				"pullRequests": {
+					"nodes": []
+				}
+			}
+		}
+	}`
+	suite.mockGitClient.EXPECT().
+		CurrentBranch(gomock.Any()).
+		Return("branchy", nil)
+	suite.mockGraphQL.EXPECT().
+		Do(graphql.GetPRForBranch, variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+
+			err := json.Unmarshal([]byte(prDetails), &gr)
+			suite.NoError(err)
+			return nil
+		})
+	prNumber, err := suite.prService.DetectCurrentPR(&git.Repo{
+		Owner: "mario",
+		Name:  "kart",
+	})
+	suite.ErrorContains(err, "no pull request found for branchy")
+	suite.Equal(0, prNumber)
 }
 
 func TestPRServiceSuite(t *testing.T) {

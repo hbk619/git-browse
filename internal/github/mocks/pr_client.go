@@ -35,6 +35,21 @@ func (m *MockPullRequestClient) EXPECT() *MockPullRequestClientMockRecorder {
 	return m.recorder
 }
 
+// DetectCurrentPR mocks base method.
+func (m *MockPullRequestClient) DetectCurrentPR(repo *git.Repo) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DetectCurrentPR", repo)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DetectCurrentPR indicates an expected call of DetectCurrentPR.
+func (mr *MockPullRequestClientMockRecorder) DetectCurrentPR(repo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DetectCurrentPR", reflect.TypeOf((*MockPullRequestClient)(nil).DetectCurrentPR), repo)
+}
+
 // GetPRDetails mocks base method.
 func (m *MockPullRequestClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
 	m.ctrl.T.Helper()

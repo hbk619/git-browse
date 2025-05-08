@@ -88,7 +88,12 @@ type (
 	}
 
 	Repository struct {
-		PullRequest PullRequest
+		PullRequest  PullRequest
+		PullRequests PullRequests
+	}
+
+	PullRequests struct {
+		Nodes []PullRequest
 	}
 
 	Contexts struct {
@@ -123,6 +128,7 @@ type (
 		Reviews           Reviews
 		Commits           Commits
 		Id                string
+		Number            int
 	}
 
 	GitHubData struct {

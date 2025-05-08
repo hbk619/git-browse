@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -16,6 +17,7 @@ import (
 )
 
 type PullRequestClient interface {
+	DetectCurrentPR(repo *git.Repo) (int, error)
 	GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error)
 	GetRepoDetails() (repository.Repository, error)
 	Resolve(comment *git.Comment) error
@@ -30,11 +32,13 @@ type GetReviewCommentsQuery struct {
 
 type PRClient struct {
 	graphQLClient requests.GraphQLClient
+	gitClient     GitClient
 }
 
-func NewPRClient(apiClient requests.GraphQLClient) *PRClient {
+func NewPRClient(apiClient requests.GraphQLClient, gitClient GitClient) *PRClient {
 	return &PRClient{
 		graphQLClient: apiClient,
+		gitClient:     gitClient,
 	}
 }
 
@@ -71,7 +75,7 @@ func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) 
 	err := gh.graphQLClient.Do(graphql.PRDetailsQuery(verbose), variables, &response)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch pr info %w", err)
 	}
 
 	prDetails := response.Repository.PullRequest
@@ -209,6 +213,34 @@ func (gh *PRClient) getThreadComments(graphQLData *git.PullRequest) []git.Commen
 		comments = append(comments, threadComments...)
 	}
 	return comments
+}
+
+func (gh *PRClient) DetectCurrentPR(repo *git.Repo) (int, error) {
+	branch, err := gh.gitClient.CurrentBranch(context.Background())
+	if err != nil {
+		return 0, fmt.Errorf("failed to get branch %w", err)
+	}
+
+	variables := map[string]interface{}{
+		"BranchName": branch,
+		"Owner":      repo.Owner,
+		"RepoName":   repo.Name,
+	}
+	var prList git.GitHubData
+	err = gh.graphQLClient.Do(graphql.GetPRForBranch, variables, &prList)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch pr %w", err)
+	}
+
+	if len(prList.Repository.PullRequests.Nodes) == 0 {
+		return 0, fmt.Errorf("no pull request found for %s", branch)
+	}
+
+	if len(prList.Repository.PullRequests.Nodes) > 1 {
+		return 0, fmt.Errorf("too many pull request found for %s", branch)
+	}
+
+	return prList.Repository.PullRequests.Nodes[0].Number, nil
 }
 
 func (gh *PRClient) GetRepoDetails() (repository.Repository, error) {
