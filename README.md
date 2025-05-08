@@ -32,6 +32,12 @@ Download and copy the [latest release](https://github.com/hbk619/git-browse/rele
 
 ## Usage
 
+To view the current PR for your branch:
+
+`git pr`
+
+To view a specific PR:
+
 `git pr <pr number>`
 
 For full up-to-date flags:

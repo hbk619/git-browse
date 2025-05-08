@@ -2,42 +2,42 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/cli/cli/v2/git"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/hbk619/git-browse/cmd/pr/internal"
 	"github.com/hbk619/git-browse/internal/filesystem"
 	"github.com/hbk619/git-browse/internal/github"
 	"github.com/hbk619/git-browse/internal/history"
-	"os"
-	"strconv"
-
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "pr [number]",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	Short: "Browse Github PR comments",
 	Long:  `View comments from a PR one by one and reply to them`,
 	Run: func(cmd *cobra.Command, args []string) {
-		number, err := strconv.Atoi(args[0])
-		if err != nil {
-			fmt.Println("Error: Please provide a valid PR number")
-			return
-		}
 		historyService, err := history.NewHistoryService(os.Getenv("HOME"), filesystem.NewFS())
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		graphQlClient, err := api.DefaultGraphQLClient()
-		prClient := github.NewPRClient(graphQlClient)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		gitClient := &git.Client{}
+
+		prClient := github.NewPRClient(graphQlClient, gitClient)
 		pr := internal.NewPRAction(prClient, historyService, filesystem.NewStdOut())
 		verbose, err := cmd.Flags().GetBool("verbose")
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = pr.Init(number, verbose)
+		err = pr.Init(args, verbose)
 		if err != nil {
 			fmt.Println(err)
 			return
