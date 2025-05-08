@@ -2,7 +2,7 @@ package history
 
 import (
 	"encoding/json"
-	"github.com/hbk619/git-browse/internal/filesystem"
+	"github.com/hbk619/gh-peruse/internal/filesystem"
 	"os"
 	"path"
 )
@@ -33,7 +33,7 @@ func NewHistoryService(basePath string, fs filesystem.FS) (*Service, error) {
 		return nil, err
 	}
 	return &Service{
-		configPath: path.Join(configPath, "git-browse-history.json"),
+		configPath: path.Join(configPath, "gh-peruse-history.json"),
 		fs:         fs,
 	}, nil
 }

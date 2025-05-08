@@ -1,4 +1,4 @@
-module github.com/hbk619/git-browse
+module github.com/hbk619/gh-peruse
 
 go 1.23.0
 

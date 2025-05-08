@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	history "github.com/hbk619/git-browse/internal/history"
+	history "github.com/hbk619/gh-peruse/internal/history"
 )
 
 // MockStorage is a mock of Storage interface.

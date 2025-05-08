@@ -9,7 +9,7 @@ import (
 
 	repository "github.com/cli/go-gh/v2/pkg/repository"
 	gomock "github.com/golang/mock/gomock"
-	git "github.com/hbk619/git-browse/internal/git"
+	git "github.com/hbk619/gh-peruse/internal/git"
 )
 
 // MockPullRequestClient is a mock of PullRequestClient interface.

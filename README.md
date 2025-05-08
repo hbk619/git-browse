@@ -1,8 +1,34 @@
-# Git Browse
+# Git Peruse
 
-For using git in a more screen reader friendly way and for those who like to go one at a time
+For using git in a more screen reader friendly way and for those who like to go one at a time.
 
-## Authentication and configuration
+You can use the binary as a [Github cli extension](#github-cli-extension) (preferred way) or as a [git command](#without-installing-github-cli),
+the latter will require a Personal Access token to be created.
+
+## Github CLI extension
+Install the [Github CLI](https://cli.github.com/)
+
+Run `gh auth login` and approve the app in the browser. 
+
+### Install the extension
+
+`gh extension install https://github.com/hbk619/gh-peruse`
+
+### Usage
+
+To view the current PR for your branch:
+
+`gh peruse pr`
+
+To view a specific PR:
+
+`gh peruse pr <pr number>`
+
+For full up-to-date flags:
+
+`gh peruse pr -h`
+
+## Without installing Github CLI
 `git-pr` uses the Github CLI library and follows the authentication mechanism and configuration options it offers:
 
 ```markdown
@@ -11,38 +37,45 @@ GitHub API requests will be authenticated using the same mechanism as gh, i.e. u
 
 You can use `git-pr` [without installing the Github CLI](#without-installing-github-cli) or the [install the Github CLI](#github-cli) to use OAuth.
 
-### Without installing Github CLI
-#### Personal Access token
+### Personal Access token
 Create a [classic personal access token](https://github.com/settings/tokens/new) with the repo scope
 and put it in an environment variable called `GH_TOKEN` or `GITHUB_TOKEN`.
 
 If you are using an enterprise server use `GH_ENTERPRISE_TOKEN` or `GITHUB_ENTERPRISE_TOKEN`
 
-#### Changing the host
+### Changing the host
 If the host cannot be inferred from the context of a repo (shouldn't happen often), set an environment variable called `GH_HOST`
 
-### Github CLI
-Install the [Github CLI](https://cli.github.com/)
+### Install the extension
 
-Run `gh auth login` and approve the app in the browser. 
+#### MacOS and Linux
 
-## Installation
+Download gh-peruse-darwin-amd64 for Mac or gh-peruse-linux-amd64 for linux from
+[latest release](https://github.com/hbk619/gh-peruse/releases/latest) 
 
-Download and copy the [latest release](https://github.com/hbk619/git-browse/releases/download/v0.0.6/git-pr) to somewhere on your path (e.g. `/usr/local/bin`)
+Copy the binary to somewhere on your path (e.g. `/usr/local/bin`) called `gh-peruse`
 
-## Usage
+#### Windows
+
+Download gh-peruse-windows-amd64.exe for Windows from
+[latest release](https://github.com/hbk619/gh-peruse/releases/latest) 
+
+Copy the binary to somewhere on your path and name it `gh-peruse.exe`
+
+### Usage
 
 To view the current PR for your branch:
 
-`git pr`
+`git peruse pr`
 
 To view a specific PR:
 
-`git pr <pr number>`
+`git peruse pr <pr number>`
 
 For full up-to-date flags:
 
-`git pr -h`
+`git peruse pr -h`
+
 
 ## Developing
 
