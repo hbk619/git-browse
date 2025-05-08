@@ -1,4 +1,26 @@
-# Git Browse
+# Git Peruse
+
+For using git in a more screen reader friendly way and for those who like to go one at a time.
+
+You can use the binary as a [Github cli extension](#github-cli-extension) (preferred way) or as a [git command](#without-installing-github-cli),
+the latter will require a Personal Access token to be created.
+
+## Github CLI extension
+Install the [Github CLI](https://cli.github.com/)
+
+Run `gh auth login` and approve the app in the browser. 
+
+### Install the extension
+
+`gh extension install https://github.com/hbk619/gh-peruse`
+
+### Usage
+
+To view the current PR for your branch:
+
+`gh peruse pr`
+
+To view a specific PR:
 
 `gh peruse pr <pr number>`
 

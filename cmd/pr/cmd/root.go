@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-var rootCmd = &cobra.Command{
+var PRCmd = &cobra.Command{
 	Use:   "pr [number]",
 	Args:  cobra.MaximumNArgs(1),
 	Short: "Browse Github PR comments",
@@ -47,12 +47,12 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	err := rootCmd.Execute()
+	err := PRCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.Flags().BoolP("verbose", "v", false, "Verbose mode")
+	PRCmd.Flags().BoolP("verbose", "v", false, "Verbose mode")
 }
