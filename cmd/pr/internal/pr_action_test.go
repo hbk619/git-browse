@@ -108,9 +108,9 @@ func (suite *PRActionTestSuite) TestInit_new_comments_never_viewed_pr() {
 		Title:    "A spiffing PR",
 	}, nil)
 
-	suite.mockOutput.EXPECT().Print("New comments ahead!")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println("New comments ahead!")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
@@ -129,9 +129,9 @@ func (suite *PRActionTestSuite) TestInit_new_comments_since_last_view() {
 		Title:    "A spiffing PR",
 	}, nil)
 
-	suite.mockOutput.EXPECT().Print("New comments ahead!")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println("New comments ahead!")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
@@ -162,14 +162,14 @@ func (suite *PRActionTestSuite) TestInit_verbose_prints_state() {
 		Title: "A spiffing PR",
 	}, nil)
 
-	suite.mockOutput.EXPECT().Print("mergable")
-	suite.mockOutput.EXPECT().Print("no conflicts")
-	suite.mockOutput.EXPECT().Print("APPROVED Peach Goomba")
-	suite.mockOutput.EXPECT().Print("Check ci SUCCESS")
-	suite.mockOutput.EXPECT().Print("Check build FAILURE")
-	suite.mockOutput.EXPECT().Print("New comments ahead!")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println("mergable")
+	suite.mockOutput.EXPECT().Println("no conflicts")
+	suite.mockOutput.EXPECT().Println("APPROVED Peach Goomba")
+	suite.mockOutput.EXPECT().Println("Check ci SUCCESS")
+	suite.mockOutput.EXPECT().Println("Check build FAILURE")
+	suite.mockOutput.EXPECT().Println("New comments ahead!")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	err := suite.prAction.Init([]string{"2"}, true)
 	suite.NoError(err)
 }
@@ -188,8 +188,8 @@ func (suite *PRActionTestSuite) TestInit_no_new_comments_since_last_view() {
 		Title:    "A spiffing PR",
 	}, nil)
 
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
@@ -234,9 +234,9 @@ func (suite *PRActionTestSuite) TestInit_err_loading_history() {
 		Title:    "A spiffing PR",
 	}, nil)
 
-	suite.mockOutput.EXPECT().Print("Warning failed to load comments to history: no permission to read file")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println("Warning failed to load comments to history: no permission to read file")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
@@ -257,10 +257,10 @@ func (suite *PRActionTestSuite) TestInit_err_saving_history() {
 		Title:    "A spiffing PR",
 	}, nil)
 
-	suite.mockOutput.EXPECT().Print("Warning failed to save comments to history: no permission to write file")
-	suite.mockOutput.EXPECT().Print("New comments ahead!")
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println("Warning failed to save comments to history: no permission to write file")
+	suite.mockOutput.EXPECT().Println("New comments ahead!")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	err := suite.prAction.Init([]string{"2"}, false)
 	suite.NoError(err)
 }
@@ -276,7 +276,7 @@ func (suite *PRActionTestSuite) TestPrint_prints_resolved_threads() {
 		},
 	}}
 
-	suite.mockOutput.EXPECT().Print("This comment is resolved")
+	suite.mockOutput.EXPECT().Println("This comment is resolved")
 	suite.prAction.Print()
 }
 
@@ -289,7 +289,7 @@ func (suite *PRActionTestSuite) TestPrint_prints_outdated() {
 		},
 	}}
 
-	suite.mockOutput.EXPECT().Print("This comment is outdated")
+	suite.mockOutput.EXPECT().Println("This comment is outdated")
 	suite.prAction.Print()
 }
 
@@ -310,12 +310,12 @@ func (suite *PRActionTestSuite) TestPrint_prints_file_info_with_path() {
 
 	suite.prAction.LastFullPath = github.MainThread
 	suite.prAction.Index = 1
-	suite.mockOutput.EXPECT().Print("README.md")
-	suite.mockOutput.EXPECT().Print("/")
-	suite.mockOutput.EXPECT().Print("28")
-	suite.mockOutput.EXPECT().Print("whhhaaayy")
-	suite.mockOutput.EXPECT().Print("Luigi")
-	suite.mockOutput.EXPECT().Print("Comment 2")
+	suite.mockOutput.EXPECT().Println("README.md")
+	suite.mockOutput.EXPECT().Println("/")
+	suite.mockOutput.EXPECT().Println("28")
+	suite.mockOutput.EXPECT().Println("whhhaaayy")
+	suite.mockOutput.EXPECT().Println("Luigi")
+	suite.mockOutput.EXPECT().Println("Comment 2")
 	suite.prAction.Print()
 }
 
@@ -336,9 +336,9 @@ func (suite *PRActionTestSuite) TestPrint_prints_file_info_without_path() {
 
 	suite.prAction.LastFullPath = "README.md:8"
 	suite.prAction.Index = 0
-	suite.mockOutput.EXPECT().Print(github.MainThread)
-	suite.mockOutput.EXPECT().Print("Mario")
-	suite.mockOutput.EXPECT().Print("Comment 1")
+	suite.mockOutput.EXPECT().Println(github.MainThread)
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
 	suite.prAction.Print()
 }
 
@@ -372,7 +372,7 @@ func (suite *PRActionTestSuite) TestReply() {
 	suite.prAction.Repo = repo
 	suite.prAction.Results = comments
 	suite.mockPrClient.EXPECT().Reply("ta", &comments[0], suite.prAction.Id).Return(nil)
-	suite.mockOutput.EXPECT().Print("Posted comment")
+	suite.mockOutput.EXPECT().Println("Posted comment")
 	suite.prAction.Reply("ta")
 }
 
@@ -407,7 +407,7 @@ func (suite *PRActionTestSuite) TestReply_middle_comment() {
 	suite.prAction.Results = comments
 	suite.prAction.Index = 1
 	suite.mockPrClient.EXPECT().Reply("ta", &comments[1], suite.prAction.Id).Return(nil)
-	suite.mockOutput.EXPECT().Print("Posted comment")
+	suite.mockOutput.EXPECT().Println("Posted comment")
 	suite.prAction.Reply("ta")
 }
 
@@ -442,7 +442,7 @@ func (suite *PRActionTestSuite) TestReply_print_error() {
 	suite.prAction.Results = comments
 	suite.prAction.Index = 1
 	suite.mockPrClient.EXPECT().Reply("ta", &comments[1], suite.prAction.Id).Return(errors.New("some error"))
-	suite.mockOutput.EXPECT().Print("Warning failed to comment: some error")
+	suite.mockOutput.EXPECT().Println("Warning failed to comment: some error")
 	suite.prAction.Reply("ta")
 }
 
@@ -474,7 +474,7 @@ func (suite *PRActionTestSuite) TestResolve() {
 	}
 	suite.prAction.Results = comments
 	suite.mockPrClient.EXPECT().Resolve(&comments[0]).Return(nil)
-	suite.mockOutput.EXPECT().Print("Conversation resolved")
+	suite.mockOutput.EXPECT().Println("Conversation resolved")
 	suite.prAction.Resolve()
 }
 
@@ -511,7 +511,7 @@ func (suite *PRActionTestSuite) TestResolve_middle_comment() {
 	suite.prAction.Results = comments
 	suite.prAction.Index = 1
 	suite.mockPrClient.EXPECT().Resolve(&comments[1]).Return(nil)
-	suite.mockOutput.EXPECT().Print("Conversation resolved")
+	suite.mockOutput.EXPECT().Println("Conversation resolved")
 	suite.prAction.Resolve()
 }
 
@@ -548,7 +548,7 @@ func (suite *PRActionTestSuite) TestResolve_error() {
 	suite.prAction.Results = comments
 	suite.prAction.Index = 2
 	suite.mockPrClient.EXPECT().Resolve(&comments[2]).Return(errors.New("some error"))
-	suite.mockOutput.EXPECT().Print("Warning failed to resolve thread: some error")
+	suite.mockOutput.EXPECT().Println("Warning failed to resolve thread: some error")
 	suite.prAction.Resolve()
 }
 

@@ -90,20 +90,20 @@ func (pr *PRAction) getPRNumber(args []string) (int, error) {
 func (pr *PRAction) updateHistory(prNumber int, commentCount int) {
 	prHistory, err := pr.history.Load()
 	if err != nil {
-		pr.output.Print(fmt.Sprintf("Warning failed to load comments to history: %s", err.Error()))
+		pr.output.Println(fmt.Sprintf("Warning failed to load comments to history: %s", err.Error()))
 	}
 
 	if err == nil {
 		existingPrHistory := prHistory.Prs[prNumber]
 		if existingPrHistory.CommentCount != commentCount {
-			pr.output.Print("New comments ahead!")
+			pr.output.Println("New comments ahead!")
 		}
 
 		existingPrHistory.CommentCount = commentCount
 		prHistory.Prs[prNumber] = existingPrHistory
 		err = pr.history.Save(prHistory)
 		if err != nil {
-			pr.output.Print(fmt.Sprintf("Warning failed to save comments to history: %s", err.Error()))
+			pr.output.Println(fmt.Sprintf("Warning failed to save comments to history: %s", err.Error()))
 		}
 	}
 }
@@ -111,18 +111,18 @@ func (pr *PRAction) updateHistory(prNumber int, commentCount int) {
 func (pr *PRAction) Reply(contents string) {
 	err := pr.client.Reply(contents, &pr.Results[pr.Interactive.Index], pr.Id)
 	if err != nil {
-		pr.output.Print(fmt.Sprintf("Warning failed to comment: %s", err.Error()))
+		pr.output.Println(fmt.Sprintf("Warning failed to comment: %s", err.Error()))
 	} else {
-		pr.output.Print("Posted comment")
+		pr.output.Println("Posted comment")
 	}
 }
 
 func (pr *PRAction) Resolve() {
 	err := pr.client.Resolve(&pr.Results[pr.Interactive.Index])
 	if err != nil {
-		pr.output.Print(fmt.Sprintf("Warning failed to resolve thread: %s", err.Error()))
+		pr.output.Println(fmt.Sprintf("Warning failed to resolve thread: %s", err.Error()))
 	} else {
-		pr.output.Print("Conversation resolved")
+		pr.output.Println("Conversation resolved")
 	}
 }
 
@@ -156,7 +156,7 @@ func (pr *PRAction) Run() {
 		case "q":
 			os.Exit(0)
 		default:
-			pr.output.Print("Invalid choice")
+			pr.output.Println("Invalid choice")
 		}
 
 	}
@@ -165,11 +165,11 @@ func (pr *PRAction) Run() {
 func (pr *PRAction) Print() {
 	current := pr.Results[pr.Interactive.Index]
 	if current.Thread.IsResolved {
-		pr.output.Print("This comment is resolved")
+		pr.output.Println("This comment is resolved")
 		return
 	}
 	if current.Outdated {
-		pr.output.Print("This comment is outdated")
+		pr.output.Println("This comment is outdated")
 		return
 	}
 	pr.printContents(current)
