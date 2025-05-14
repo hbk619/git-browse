@@ -44,3 +44,15 @@ func (mr *MockOutputMockRecorder) Print(text interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Print", reflect.TypeOf((*MockOutput)(nil).Print), text)
 }
+
+// Println mocks base method.
+func (m *MockOutput) Println(text string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Println", text)
+}
+
+// Println indicates an expected call of Println.
+func (mr *MockOutputMockRecorder) Println(text interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Println", reflect.TypeOf((*MockOutput)(nil).Println), text)
+}
