@@ -1,0 +1,32 @@
+name: Release
+on:
+  workflow_run:
+    workflows: ["ci"]
+    branches: [main]
+    types: 
+      - completed
+
+permissions:
+  content: write
+
+jobs:
+  on-success:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.8'
+      - name: Install SVU
+        run: go install github.com/caarlos0/svu/v3@caa51903e896854df4cb1897d3813d087f34cf17
+      - name: Set next version
+        run: echo "NEXT_VERSION=$(svu next)" >> $GITHUB_ENV
+      - name: Generate release release notes
+        run: ./scripts/release_notes.sh $NEXT_VERSION > release_notes.txt
+      - name: Build binaries
+        run: ./scripts/build-extension.sh
+      - name: Create release
+        run: gh release create $NEXT_VERSION --latest -F release_notes.txt ./*amd64*
