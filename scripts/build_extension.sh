@@ -1,4 +1,4 @@
-#!/usr/bin/zsh
+#!/bin/bash
 
 go build
 GOOS=windows GOARCH=amd64 go build -o gh-peruse-windows-amd64.exe
