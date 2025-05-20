@@ -50,6 +50,21 @@ func (mr *MockPullRequestClientMockRecorder) DetectCurrentPR(repo interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DetectCurrentPR", reflect.TypeOf((*MockPullRequestClient)(nil).DetectCurrentPR), repo)
 }
 
+// GetCommentCountForOwnedPRs mocks base method.
+func (m *MockPullRequestClient) GetCommentCountForOwnedPRs(repo *git.Repo) (map[int]int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCommentCountForOwnedPRs", repo)
+	ret0, _ := ret[0].(map[int]int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCommentCountForOwnedPRs indicates an expected call of GetCommentCountForOwnedPRs.
+func (mr *MockPullRequestClientMockRecorder) GetCommentCountForOwnedPRs(repo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommentCountForOwnedPRs", reflect.TypeOf((*MockPullRequestClient)(nil).GetCommentCountForOwnedPRs), repo)
+}
+
 // GetPRDetails mocks base method.
 func (m *MockPullRequestClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {
 	m.ctrl.T.Helper()

@@ -2,6 +2,8 @@ package graphql
 
 import (
 	"fmt"
+
+	"github.com/hbk619/gh-peruse/internal/git"
 )
 
 func PRDetailsQuery(verbose bool) string {
@@ -107,3 +109,53 @@ var GetPRForBranch = `query GetPRForBranch($BranchName: String!, $Owner: String!
     }
   }
 }`
+
+func GetAllPRsFor(repo *git.Repo) string {
+	repoUrl := fmt.Sprintf("%s/%s", repo.Owner, repo.Name)
+	return fmt.Sprintf(`query {
+    search(
+      type: ISSUE,
+      query: "repo:%s author:@me state:open is:pr",
+      first: 20
+    ) {
+      edges {
+        node {
+          ... on PullRequest {
+          id
+          number
+          commits(first: 100) {
+            nodes {
+              commit {
+                comments(first: 100) {
+                  nodes {
+                    body
+                  }
+                }
+              }
+            }
+          }
+          reviews(first: 100) {
+            nodes {
+                body
+              }
+          }
+          reviewThreads(first: 100) {
+            nodes {
+              comments(first: 100) {
+                nodes {
+                  body
+                }
+              }
+            }
+          }
+          comments(first: 100) {
+            nodes {
+              body
+            }
+          }
+        }
+      }
+    }
+  }
+}`, repoUrl)
+}

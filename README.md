@@ -76,6 +76,17 @@ For full up-to-date flags:
 
 `git peruse pr -h`
 
+### Notifications for new comments
+
+If you'd like to receive a system notification when you have new comments on PRs you own you can add the following to a job that runs on a schedule e.g. via [cron](https://en.wikipedia.org/wiki/Cron) or [Windows Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler)
+
+#### Using Github CLI
+
+`gh peruse pr check -n`
+
+#### Using Git
+
+`git peruse pr check -n`
 
 ## Developing
 

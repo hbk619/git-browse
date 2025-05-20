@@ -34,9 +34,11 @@ func (m *MockOutput) EXPECT() *MockOutputMockRecorder {
 }
 
 // Print mocks base method.
-func (m *MockOutput) Print(text string) {
+func (m *MockOutput) Print(text string) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Print", text)
+	ret := m.ctrl.Call(m, "Print", text)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Print indicates an expected call of Print.
@@ -46,9 +48,11 @@ func (mr *MockOutputMockRecorder) Print(text interface{}) *gomock.Call {
 }
 
 // Println mocks base method.
-func (m *MockOutput) Println(text string) {
+func (m *MockOutput) Println(text string) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Println", text)
+	ret := m.ctrl.Call(m, "Println", text)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Println indicates an expected call of Println.

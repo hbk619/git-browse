@@ -6,17 +6,19 @@ import (
 
 	"github.com/cli/cli/v2/git"
 	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/hbk619/gh-peruse/cmd/pr/internal"
+	"github.com/hbk619/gh-peruse/cmd/pr/internal/new_comments"
+
 	"github.com/hbk619/gh-peruse/internal/filesystem"
 	"github.com/hbk619/gh-peruse/internal/github"
 	"github.com/hbk619/gh-peruse/internal/history"
+	"github.com/hbk619/gh-peruse/internal/notifications"
 	"github.com/spf13/cobra"
 )
 
-var PRCmd = &cobra.Command{
-	Use:   "pr [number]",
-	Args:  cobra.MaximumNArgs(1),
-	Short: "Browse Github PR comments",
+var CheckCommentCountCmd = &cobra.Command{
+	Use:   "check",
+	Args:  cobra.NoArgs,
+	Short: "Check and notify of new commands",
 	Long:  `View comments from a PR one by one and reply to them`,
 	Run: func(cmd *cobra.Command, args []string) {
 		historyService, err := history.NewHistoryService(os.Getenv("HOME"), filesystem.NewFS())
@@ -32,29 +34,28 @@ var PRCmd = &cobra.Command{
 		gitClient := &git.Client{}
 
 		prClient := github.NewPRClient(graphQlClient, gitClient)
-		pr := internal.NewPRAction(prClient, historyService, filesystem.NewStdOut())
-		verbose, err := cmd.Flags().GetBool("verbose")
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = pr.Init(args, verbose)
+		notify, err := cmd.Flags().GetBool("notify")
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		pr.Run()
+		var output filesystem.Output
+		if notify {
+			output = notifications.NewNotifier()
+		} else {
+			output = filesystem.NewStdOut()
+		}
+		err = new_comments.CheckForNewComments(prClient, historyService, output)
+		if err != nil {
+			fmt.Println(err)
+		}
 	},
 }
 
-func Execute() {
-	err := PRCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
 func init() {
-	PRCmd.AddCommand(CheckCommentCountCmd)
-	PRCmd.Flags().BoolP("verbose", "v", false, "Verbose mode")
+	CheckCommentCountCmd.Flags().BoolP("notify", "n", false, "Show notification for new comments")
 }

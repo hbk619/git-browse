@@ -3,6 +3,10 @@ package github
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+	stdtime "time"
+
 	githubql "github.com/cli/shurcooL-graphql"
 	"github.com/golang/mock/gomock"
 	"github.com/hbk619/gh-peruse/internal/git"
@@ -11,9 +15,6 @@ import (
 	mock_requests "github.com/hbk619/gh-peruse/internal/requests/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
-	stdtime "time"
 )
 
 type PRServiceTestSuite struct {
@@ -837,6 +838,143 @@ func (suite *PRServiceTestSuite) TestDetectCurrentPR_returns_pr_error_when_none_
 	})
 	suite.ErrorContains(err, "no pull request found for branchy")
 	suite.Equal(0, prNumber)
+}
+
+func (suite *PRServiceTestSuite) TestGetCommentCountForOwnedPRs() {
+	variables := map[string]interface{}{
+		"Owner":    githubql.String(suite.repo.Owner),
+		"RepoName": githubql.String(suite.repo.Name),
+	}
+	searchResults := `{
+	"Data": {
+		"Search": {
+			"Edges": [
+				{
+					"Node": {
+						"Commits": {
+							"nodes": [
+								{
+									"commit": {
+										"comments": {
+											"nodes": [
+												{"body": "This is a commit comment"}
+											]
+										}
+									}
+								},
+								{
+									"commit": {
+										"comments": null
+									}
+								}
+							]
+						},
+						"Comments": {
+							"nodes": [
+								{"body": "Rraaawwww"},
+								{"body": "Yum!"}
+							]
+						},
+						"Reviews": {
+							"nodes": [
+								{"body": "Great start"},
+								{"body": "Gone down hill!"},
+								{"body": "Keep it up!"},
+								{"body": ""},
+								{"body": "Wonderful!"}
+							]
+						},
+						"ReviewThreads":  {
+							"nodes" : [ {
+								"comments" : {
+									"nodes" : [ {"body" : "Looking good!"} ]
+								}
+							}, {
+								"comments" : {
+									"nodes" : [ 
+										{"body": "this is a reply"}, 
+										{"body" : "this is a line comment not in a review"}
+									]
+								}
+							}
+						]
+						},
+						"Number": 2
+					}
+				},
+				{
+					"Node": {
+						"Commits": {
+							"nodes": [
+								{
+									"commit": {
+										"comments": null
+									}
+								},
+								{
+									"commit": {
+										"comments": null
+									}
+								}
+							]
+						},
+						"Comments": {
+							"nodes": [
+								{"body": "Rraaawwww"},
+								{"body": "Yum!"}
+							]
+						},
+						"Reviews": {
+							"nodes": [
+								{"body": "Keep it up!"},
+								{"body": ""}
+							]
+						},
+						"ReviewThreads":  null,
+						"Number": 5
+					}
+				},
+				{
+					"Node": {
+						"Comments": null,
+						"Reviews": null,
+						"ReviewThreads": null,
+						"Number": 7
+					}
+				}
+			]
+		}
+	}
+}`
+	suite.mockGraphQL.EXPECT().Do(graphql.GetAllPRsFor(suite.repo), variables, gomock.Any()).
+		DoAndReturn(func(query string, variables map[string]interface{}, response interface{}) error {
+			gr := GraphQLResponse{Data: response}
+
+			err := json.Unmarshal([]byte(searchResults), &gr)
+			suite.NoError(err)
+			return nil
+		})
+	counts, err := suite.prService.GetCommentCountForOwnedPRs(suite.repo)
+
+	suite.NoError(err)
+	suite.Equal(map[int]int{
+		2: 10,
+		5: 3,
+		7: 0,
+	}, counts)
+}
+
+func (suite *PRServiceTestSuite) TestGetCommentCountForOwnedPRs_returns_error() {
+	variables := map[string]interface{}{
+		"Owner":    githubql.String(suite.repo.Owner),
+		"RepoName": githubql.String(suite.repo.Name),
+	}
+	suite.mockGraphQL.EXPECT().Do(graphql.GetAllPRsFor(suite.repo), variables, gomock.Any()).
+		Return(errors.New("failed to graphql"))
+	counts, err := suite.prService.GetCommentCountForOwnedPRs(suite.repo)
+
+	suite.ErrorContains(err, "failed to graphql")
+	suite.Nil(counts)
 }
 
 func TestPRServiceSuite(t *testing.T) {
