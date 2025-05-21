@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	githubql "github.com/cli/shurcooL-graphql"
 	"github.com/hbk619/gh-peruse/internal/git"
 	"github.com/hbk619/gh-peruse/internal/github/graphql"
 	"github.com/hbk619/gh-peruse/internal/requests"
-	"path/filepath"
-	"slices"
-	"strings"
-	"time"
 )
 
 type PullRequestClient interface {
@@ -22,6 +23,7 @@ type PullRequestClient interface {
 	GetRepoDetails() (repository.Repository, error)
 	Resolve(comment *git.Comment) error
 	Reply(contents string, comment *git.Comment, prId string) error
+	GetCommentCountForOwnedPRs(repo *git.Repo) (map[int]int, error)
 }
 
 type GetReviewCommentsQuery struct {
@@ -63,6 +65,50 @@ var mergeStates = map[string]string{
 type GraphQLResponse struct {
 	Data   interface{}
 	Errors []api.GraphQLErrorItem
+}
+
+func (gh *PRClient) GetCommentCountForOwnedPRs(repo *git.Repo) (map[int]int, error) {
+	variables := map[string]interface{}{
+		"Owner":    githubql.String(repo.Owner),
+		"RepoName": githubql.String(repo.Name),
+	}
+	var response git.GithubQuery
+	query := graphql.GetAllPRsFor(repo)
+	err := gh.graphQLClient.Do(query, variables, &response)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch pr info %w", err)
+	}
+
+	prDetails := response.Search.Edges
+	fmt.Print(len(prDetails))
+
+	allPrDetails := make(map[int]int)
+	for _, edge := range prDetails {
+		pr := edge.Node
+		count := countComments(pr.Comments.Nodes)
+		count += countComments(pr.Reviews.Nodes)
+		for _, thread := range pr.ReviewThreads.Nodes {
+			count += countComments(thread.Comments.Nodes)
+		}
+		for _, thread := range pr.Commits.Nodes {
+			count += countComments(thread.Commit.Comments.Nodes)
+		}
+
+		allPrDetails[pr.Number] = count
+
+	}
+	return allPrDetails, nil
+}
+
+func countComments(comments []git.Comment) int {
+	count := 0
+	for _, comment := range comments {
+		if comment.Body != "" {
+			count++
+		}
+	}
+	return count
 }
 
 func (gh *PRClient) GetPRDetails(repo *git.Repo, verbose bool) (*git.PR, error) {

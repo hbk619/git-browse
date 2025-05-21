@@ -28,7 +28,7 @@ func (prompt *Prompter) String(label string) string {
 	var s string
 	r := bufio.NewReader(prompt.input)
 	for {
-		prompt.output.Print(label + ": ")
+		_ = prompt.output.Print(label + ": ")
 		s, _ = r.ReadString('\n')
 		if s != "" {
 			break

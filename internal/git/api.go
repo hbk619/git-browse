@@ -134,4 +134,14 @@ type (
 	GitHubData struct {
 		Repository Repository
 	}
+
+	GithubPREdge struct {
+		Node PullRequest
+	}
+	GithubSearch struct {
+		Edges []GithubPREdge
+	}
+	GithubQuery struct {
+		Search GithubSearch
+	}
 )
