@@ -5,6 +5,10 @@ For using git in a more screen reader friendly way and for those who like to go 
 You can use the binary as a [Github cli extension](#github-cli-extension) (preferred way) or as a [git command](#without-installing-github-cli),
 the latter will require a Personal Access token to be created.
 
+## Pre-requisites (Linux)
+If you are using Linux and want to use the "copy comment to clipboard" feature you will need
+[xclip](https://github.com/astrand/xclip) or [xsel](https://github.com/kfish/xsel) installed. These are generally available from your package manager.
+
 ## Github CLI extension
 Install the [Github CLI](https://cli.github.com/)
 

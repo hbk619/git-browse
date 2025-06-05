@@ -12,6 +12,7 @@ import (
 	"github.com/hbk619/gh-peruse/internal/git"
 	"github.com/hbk619/gh-peruse/internal/github"
 	"github.com/hbk619/gh-peruse/internal/history"
+	internal_os "github.com/hbk619/gh-peruse/internal/os"
 )
 
 type PRAction struct {
@@ -25,11 +26,12 @@ type PRAction struct {
 	client              github.PullRequestClient
 	history             history.Storage
 	output              filesystem.Output
+	clipboard           internal_os.Clippy
 	prompt              internal.Prompter
 	internal.Interactive
 }
 
-func NewPRAction(client github.PullRequestClient, history history.Storage, output filesystem.Output) *PRAction {
+func NewPRAction(client github.PullRequestClient, history history.Storage, output filesystem.Output, clipboard internal_os.Clippy) *PRAction {
 	return &PRAction{
 		Repo:                &git.Repo{},
 		PrintedPathLastTime: true,
@@ -38,6 +40,7 @@ func NewPRAction(client github.PullRequestClient, history history.Storage, outpu
 		client:              client,
 		history:             history,
 		output:              output,
+		clipboard:           clipboard,
 		prompt:              *internal.NewPrompt(os.Stdin, output),
 	}
 }
@@ -130,7 +133,7 @@ func (pr *PRAction) Resolve() {
 
 func (pr *PRAction) Run() {
 	for {
-		prompt := "n to go to the next result, p for previous, r to repeat or q to quit"
+		prompt := "n to go to the next result, p for previous, r to repeat, x to copy or q to quit"
 		currentComment := pr.Results[pr.Interactive.Index]
 		pr.LastFullPath = currentComment.File.FullPath
 		if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
@@ -155,6 +158,11 @@ func (pr *PRAction) Run() {
 		case "c":
 			comment := pr.prompt.String("Type comment and press enter")
 			pr.Reply(comment)
+		case "x":
+			err := pr.clipboard.Write(currentComment.Body)
+			if err != nil {
+				pr.output.Println(err.Error())
+			}
 		case "q":
 			os.Exit(0)
 		default:
