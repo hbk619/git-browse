@@ -2,6 +2,8 @@ package internal
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/golang/mock/gomock"
 	mock_filesystem "github.com/hbk619/gh-peruse/internal/filesystem/mocks"
@@ -10,17 +12,18 @@ import (
 	mock_github "github.com/hbk619/gh-peruse/internal/github/mocks"
 	"github.com/hbk619/gh-peruse/internal/history"
 	mock_history "github.com/hbk619/gh-peruse/internal/history/mocks"
+	mock_os "github.com/hbk619/gh-peruse/internal/os/mocks"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type PRActionTestSuite struct {
 	suite.Suite
-	ctrl         *gomock.Controller
-	prAction     *PRAction
-	mockHistory  *mock_history.MockStorage
-	mockOutput   *mock_filesystem.MockOutput
-	mockPrClient *mock_github.MockPullRequestClient
+	ctrl          *gomock.Controller
+	prAction      *PRAction
+	mockHistory   *mock_history.MockStorage
+	mockOutput    *mock_filesystem.MockOutput
+	mockClipboard *mock_os.MockClippy
+	mockPrClient  *mock_github.MockPullRequestClient
 }
 
 func (suite *PRActionTestSuite) BeforeTest(string, string) {
@@ -28,7 +31,8 @@ func (suite *PRActionTestSuite) BeforeTest(string, string) {
 	suite.mockOutput = mock_filesystem.NewMockOutput(suite.ctrl)
 	suite.mockHistory = mock_history.NewMockStorage(suite.ctrl)
 	suite.mockPrClient = mock_github.NewMockPullRequestClient(suite.ctrl)
-	suite.prAction = NewPRAction(suite.mockPrClient, suite.mockHistory, suite.mockOutput)
+	suite.mockClipboard = mock_os.NewMockClippy(suite.ctrl)
+	suite.prAction = NewPRAction(suite.mockPrClient, suite.mockHistory, suite.mockOutput, suite.mockClipboard)
 }
 
 func (suite *PRActionTestSuite) TestInit_no_comments() {
