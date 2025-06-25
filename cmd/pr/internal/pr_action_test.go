@@ -12,6 +12,7 @@ import (
 	mock_github "github.com/hbk619/gh-peruse/internal/github/mocks"
 	"github.com/hbk619/gh-peruse/internal/history"
 	mock_history "github.com/hbk619/gh-peruse/internal/history/mocks"
+	mock_internal "github.com/hbk619/gh-peruse/internal/mocks"
 	mock_os "github.com/hbk619/gh-peruse/internal/os/mocks"
 	"github.com/stretchr/testify/suite"
 )
@@ -24,6 +25,7 @@ type PRActionTestSuite struct {
 	mockOutput    *mock_filesystem.MockOutput
 	mockClipboard *mock_os.MockClippy
 	mockPrClient  *mock_github.MockPullRequestClient
+	mockPrompt    *mock_internal.MockPrompt
 }
 
 func (suite *PRActionTestSuite) BeforeTest(string, string) {
@@ -32,7 +34,8 @@ func (suite *PRActionTestSuite) BeforeTest(string, string) {
 	suite.mockHistory = mock_history.NewMockStorage(suite.ctrl)
 	suite.mockPrClient = mock_github.NewMockPullRequestClient(suite.ctrl)
 	suite.mockClipboard = mock_os.NewMockClippy(suite.ctrl)
-	suite.prAction = NewPRAction(suite.mockPrClient, suite.mockHistory, suite.mockOutput, suite.mockClipboard)
+	suite.mockPrompt = mock_internal.NewMockPrompt(suite.ctrl)
+	suite.prAction = NewPRAction(suite.mockPrClient, suite.mockHistory, suite.mockOutput, suite.mockClipboard, suite.mockPrompt)
 }
 
 func (suite *PRActionTestSuite) TestInit_no_comments() {
@@ -554,6 +557,253 @@ func (suite *PRActionTestSuite) TestResolve_error() {
 	suite.mockPrClient.EXPECT().Resolve(&comments[2]).Return(errors.New("some error"))
 	suite.mockOutput.EXPECT().Println("Warning failed to resolve thread: some error")
 	suite.prAction.Resolve()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_repeat() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit").Return("r")
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
+	suite.prAction.Index = 0
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{FullPath: github.MainThread},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_next() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit").Return("n")
+	suite.mockOutput.EXPECT().Println("Luigi")
+	suite.mockOutput.EXPECT().Println("README.md")
+	suite.mockOutput.EXPECT().Println("/")
+	suite.mockOutput.EXPECT().Println("28")
+	suite.mockOutput.EXPECT().Println("whhhaaayy")
+	suite.mockOutput.EXPECT().Println("Comment 2")
+	suite.prAction.Index = 0
+	suite.prAction.MaxIndex = 1
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{FullPath: github.MainThread},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_previous() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit").Return("p")
+	suite.mockOutput.EXPECT().Println(github.MainThread)
+	suite.mockOutput.EXPECT().Println("Mario")
+	suite.mockOutput.EXPECT().Println("Comment 1")
+	suite.prAction.Index = 1
+	suite.prAction.MaxIndex = 1
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_invalid() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit").Return("w")
+	suite.mockOutput.EXPECT().Println("Invalid choice")
+	suite.prAction.Index = 0
+	suite.prAction.MaxIndex = 0
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_expand() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit, e to expand").Return("e")
+	suite.mockOutput.EXPECT().Println("Luigi")
+	suite.mockOutput.EXPECT().Println("README.md")
+	suite.mockOutput.EXPECT().Println("/")
+	suite.mockOutput.EXPECT().Println("28")
+	suite.mockOutput.EXPECT().Println("whhhaaayy")
+	suite.mockOutput.EXPECT().Println("Comment 2")
+	suite.prAction.Index = 1
+	suite.prAction.MaxIndex = 1
+	suite.prAction.LastFullPath = "README.md:28"
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		Thread: git.Thread{
+			IsResolved: true,
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_copy() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit, e to expand").Return("x")
+	suite.mockClipboard.EXPECT().Write("Comment 2").Return(nil)
+	suite.prAction.Index = 1
+	suite.prAction.MaxIndex = 1
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		Thread: git.Thread{
+			IsResolved: true,
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_copy_fails() {
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit, e to expand").Return("x")
+	suite.mockClipboard.EXPECT().Write("Comment 2").Return(errors.New("oops"))
+	suite.mockOutput.EXPECT().Println("oops")
+	suite.prAction.Index = 1
+	suite.prAction.MaxIndex = 1
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}, {
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		Thread: git.Thread{
+			IsResolved: true,
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_resolve() {
+	comment2 := git.Comment{
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		Thread: git.Thread{
+			IsResolved: true,
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit, e to expand").Return("res")
+	suite.mockPrClient.EXPECT().Resolve(&comment2).Return(nil)
+	suite.mockOutput.EXPECT().Println("Conversation resolved")
+	suite.prAction.Index = 1
+	suite.prAction.MaxIndex = 1
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}, comment2}
+
+	suite.prAction.doPrompt()
+}
+
+func (suite *PRActionTestSuite) TestDoPrompt_reply() {
+	comment2 := git.Comment{
+		Body: "Comment 2",
+		Author: git.Author{
+			Login: "Luigi",
+		},
+		Thread: git.Thread{
+			IsResolved: true,
+		},
+		File: git.File{FullPath: "README.md:28", Path: "/", Line: 28, LineContents: "whhhaaayy", FileName: "README.md"},
+	}
+	suite.mockPrompt.EXPECT().String("n to go to the next result, p for previous, r to repeat, x to copy or q to quit, e to expand").Return("c")
+	suite.mockPrompt.EXPECT().String("Type comment and press enter").Return("sounds good!")
+	suite.mockPrClient.EXPECT().Reply("sounds good!", gomock.Any(), gomock.Any()).Return(nil)
+	suite.mockOutput.EXPECT().Println("Posted comment")
+	suite.prAction.Index = 1
+	suite.prAction.MaxIndex = 1
+	suite.prAction.Results = []git.Comment{{
+		Body: "Comment 1",
+		Author: git.Author{
+			Login: "Mario",
+		},
+		File: git.File{
+			FullPath: github.MainThread,
+			FileName: github.MainThread,
+		},
+	}, comment2}
+
+	suite.prAction.doPrompt()
 }
 
 func TestPrActionSuite(t *testing.T) {

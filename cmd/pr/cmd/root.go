@@ -11,6 +11,7 @@ import (
 	"github.com/hbk619/gh-peruse/internal/github"
 	"github.com/hbk619/gh-peruse/internal/history"
 	internal_os "github.com/hbk619/gh-peruse/internal/os"
+	common "github.com/hbk619/gh-peruse/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +35,9 @@ var PRCmd = &cobra.Command{
 
 		prClient := github.NewPRClient(graphQlClient, gitClient)
 		clipboard := internal_os.NewClipboard()
-		pr := internal.NewPRAction(prClient, historyService, filesystem.NewStdOut(), clipboard)
+		output := filesystem.NewStdOut()
+		prompt := common.NewPrompt(os.Stdin, output)
+		pr := internal.NewPRAction(prClient, historyService, output, clipboard, prompt)
 		verbose, err := cmd.Flags().GetBool("verbose")
 		if err != nil {
 			fmt.Println(err)

@@ -27,11 +27,11 @@ type PRAction struct {
 	history             history.Storage
 	output              filesystem.Output
 	clipboard           internal_os.Clippy
-	prompt              internal.Prompter
+	prompt              internal.Prompt
 	internal.Interactive
 }
 
-func NewPRAction(client github.PullRequestClient, history history.Storage, output filesystem.Output, clipboard internal_os.Clippy) *PRAction {
+func NewPRAction(client github.PullRequestClient, history history.Storage, output filesystem.Output, clipboard internal_os.Clippy, prompt internal.Prompt) *PRAction {
 	return &PRAction{
 		Repo:                &git.Repo{},
 		PrintedPathLastTime: true,
@@ -41,7 +41,7 @@ func NewPRAction(client github.PullRequestClient, history history.Storage, outpu
 		history:             history,
 		output:              output,
 		clipboard:           clipboard,
-		prompt:              *internal.NewPrompt(os.Stdin, output),
+		prompt:              prompt,
 	}
 }
 
@@ -133,42 +133,45 @@ func (pr *PRAction) Resolve() {
 
 func (pr *PRAction) Run() {
 	for {
-		prompt := "n to go to the next result, p for previous, r to repeat, x to copy or q to quit"
-		currentComment := pr.Results[pr.Interactive.Index]
-		pr.LastFullPath = currentComment.File.FullPath
-		if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
-			prompt += ", res to resolve"
-		}
-		if currentComment.Thread.IsResolved || currentComment.Outdated {
-			prompt += ", e to expand"
-		}
-		result := pr.prompt.String(prompt)
-		switch result {
-		case "n":
-			pr.Interactive.Next(pr.Print)
-		case "p":
-			pr.Interactive.Previous(pr.Print)
-		case "r":
-			pr.Interactive.Repeat(pr.Print)
-		case "e":
-			pr.LastFullPath = ""
-			pr.printContents(currentComment)
-		case "res":
-			pr.Resolve()
-		case "c":
-			comment := pr.prompt.String("Type comment and press enter")
-			pr.Reply(comment)
-		case "x":
-			err := pr.clipboard.Write(currentComment.Body)
-			if err != nil {
-				pr.output.Println(err.Error())
-			}
-		case "q":
-			os.Exit(0)
-		default:
-			_ = pr.output.Println("Invalid choice")
-		}
+		pr.doPrompt()
+	}
+}
 
+func (pr *PRAction) doPrompt() {
+	prompt := "n to go to the next result, p for previous, r to repeat, x to copy or q to quit"
+	currentComment := pr.Results[pr.Interactive.Index]
+	pr.LastFullPath = currentComment.File.FullPath
+	if currentComment.Thread.ID != "" && !currentComment.Thread.IsResolved {
+		prompt += ", res to resolve"
+	}
+	if currentComment.Thread.IsResolved || currentComment.Outdated {
+		prompt += ", e to expand"
+	}
+	result := pr.prompt.String(prompt)
+	switch result {
+	case "n":
+		pr.Interactive.Next(pr.Print)
+	case "p":
+		pr.Interactive.Previous(pr.Print)
+	case "r":
+		pr.Interactive.Repeat(pr.Print)
+	case "e":
+		pr.LastFullPath = ""
+		pr.printContents(currentComment)
+	case "res":
+		pr.Resolve()
+	case "c":
+		comment := pr.prompt.String("Type comment and press enter")
+		pr.Reply(comment)
+	case "x":
+		err := pr.clipboard.Write(currentComment.Body)
+		if err != nil {
+			pr.output.Println(err.Error())
+		}
+	case "q":
+		os.Exit(0)
+	default:
+		_ = pr.output.Println("Invalid choice")
 	}
 }
 
